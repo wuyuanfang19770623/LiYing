@@ -20,5 +20,7 @@
     "key_param": "Key Parameters",
     "final_image": "Final Image",
     "corrected_image": "Corrected Image",
-    "notification": "Notification"
+    "notification": "Notification",
+    "size_config": "Size Config",
+    "color_config": "Color Config"
 }

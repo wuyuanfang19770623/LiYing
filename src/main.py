@@ -81,17 +81,21 @@ def echo_message(key, **kwargs):
 @click.option('-r', '--rmbg-model-path', type=click.Path(),
               default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'model/RMBG-1.4-model.onnx'),
               help='Path to RMBG model' if get_language() == 'en' else 'RMBG 模型路径')
+@click.option('-sz', '--size-config', type=click.Path(exists=True),
+              help='Path to size configuration file' if get_language() == 'en' else '尺寸配置文件路径')
+@click.option('-cl', '--color-config', type=click.Path(exists=True),
+              help='Path to color configuration file' if get_language() == 'en' else '颜色配置文件路径')
 @click.option('-b', '--rgb-list', type=RGBListType(), default='0,0,0',
               help='RGB channel values list (comma-separated) for image composition' if get_language() == 'en' else 'RGB 通道值列表（英文逗号分隔），用于图像合成')
 @click.option('-s', '--save-path', type=click.Path(), default='output.jpg',
               help='Path to save the output image' if get_language() == 'en' else '保存路径')
-@click.option('-p', '--photo-type', type=str, default='one_inch_photo' if get_language() == 'en' else '一寸照片',
-              help='Photo types(supporting formats of XXpx x XXpx or those specified in the data.ini)' if get_language() == 'en' else '照片类型（支持 XXpx x XXpx 格式或 data.ini 中指定的格式）')
-@click.option('--photo-sheet-size', type=str, default='five_inch_photo' if get_language() == 'en' else '五寸照片',
-              help='Size of the photo sheet(supporting formats of XXpx x XXpx or those specified in the data.ini)' if get_language() == 'en' else '选择照片表格的尺寸（支持 XXpx x XXpx 格式或 data.ini 中指定的格式）')
+@click.option('-p', '--photo-type', type=str, default='one_inch' if get_language() == 'en' else '一寸',
+              help='Photo types(supporting formats of XXpx x XXpx or those specified in the size config)' if get_language() == 'en' else '照片类型（支持 XXpx x XXpx 格式或尺寸配置中指定的格式）')
+@click.option('-ps', '--photo-sheet-size', type=str, default='five_inch' if get_language() == 'en' else '五寸',
+              help='Size of the photo sheet(supporting formats of XXpx x XXpx or those specified in the size config)' if get_language() == 'en' else '选择照片表格的尺寸（支持 XXpx x XXpx 格式或尺寸配置中指定的格式）')
 @click.option('-c', '--compress/--no-compress', default=False,
               help='Whether to compress the image' if get_language() == 'en' else '是否压缩图像（使用 AGPicCompress 压缩）')
-@click.option('-sc', '--save-corrected/--no-save-corrected', default=False,
+@click.option('-sv', '--save-corrected/--no-save-corrected', default=False,
               help='Whether to save the corrected image' if get_language() == 'en' else '是否保存修正图像后的图片')
 @click.option('-bg', '--change-background/--no-change-background', default=False,
               help='Whether to change the background' if get_language() == 'en' else '是否替换背景')
@@ -101,18 +105,18 @@ def echo_message(key, **kwargs):
               help='Number of rows in the photo sheet' if get_language() == 'en' else '照片表格的行数')
 @click.option('-sc', '--sheet-cols', type=int, default=3,
               help='Number of columns in the photo sheet' if get_language() == 'en' else '照片表格的列数')
-@click.option('--rotate/--no-rotate', default=False,
+@click.option('-rt', '--rotate/--no-rotate', default=False,
               help='Whether to rotate the photo by 90 degrees' if get_language() == 'en' else '是否旋转照片90度')
 @click.option('-rs', '--resize/--no-resize', default=True,
               help='Whether to resize the image' if get_language() == 'en' else '是否调整图像尺寸')
-@click.option('-srz', '--save-resized/--no-save-resized', default=False,
+@click.option('-sz', '--save-resized/--no-save-resized', default=False,
               help='Whether to save the resized image' if get_language() == 'en' else '是否保存调整尺寸后的图像')
-def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, rgb_list, save_path, photo_type,
-        photo_sheet_size, compress, save_corrected,
-        change_background, save_background, sheet_rows, sheet_cols, rotate, resize, save_resized):
+def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_config, color_config, rgb_list, save_path, 
+        photo_type, photo_sheet_size, compress, save_corrected, change_background, save_background, sheet_rows, 
+        sheet_cols, rotate, resize, save_resized):
     # Create an instance of the image processor
     processor = ImageProcessor(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, rgb_list, y_b=compress)
-    photo_requirements_detector = PhotoRequirements()
+    photo_requirements = PhotoRequirements(get_language(), size_config, color_config)
     # Crop and correct image
     processor.crop_and_correct_image()
     if save_corrected:
@@ -138,7 +142,7 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, rgb_list
 
     # Generate photo sheet
     # Set photo sheet size
-    sheet_width, sheet_height, _ = photo_requirements_detector.get_resize_image_list(photo_sheet_size)
+    sheet_width, sheet_height, _ = photo_requirements.get_resize_image_list(photo_sheet_size)
     generator = PhotoSheetGenerator([sheet_width, sheet_height])
     photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate)
     sheet_path = os.path.splitext(save_path)[0] + '_sheet' + os.path.splitext(save_path)[1]

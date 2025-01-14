@@ -1,0 +1,35 @@
+Name,PrintWidth,PrintHeight,ElectronicWidth,ElectronicHeight,Resolution,FileFormat,FileSizeMin,FileSizeMax,Type,Notes
+small_one_inch,2.2,3.2,260,378,300,jpg,,,photo,Commonly used for ID photos
+one_inch,2.5,3.5,295,413,300,jpg,,,photo,Standard ID photo size
+large_one_inch,3.3,4.8,390,567,300,jpg,,,photo,
+small_two_inch,3.5,4.5,413,531,300,jpg,,,photo,
+two_inch,3.5,4.9,413,626,300,jpg,,,photo,
+large_two_inch,3.5,4.9,413,626,300,jpg,,,photo,
+five_inch,8.9,12.7,1050,1499,,jpg,,,both,
+six_inch,10.2,15.2,1300,1950,,jpg,,,both,
+drivers_license,,,260,378,300,jpg,14,30,photo,
+national_id,,,358,441,350,jpg,,,photo,RGB format
+social_security,2.6,3.2,358,441,350,jpg,9,20,photo,
+adult_higher_education_exam,3.3,4.8,390,567,300,jpg,20,200,photo,
+art_exam_application,3.5,4.9,413,625,,jpg,,,photo,
+mandarin_proficiency_test,3.3,4.8,390,567,,jpg,,,photo,
+civil_service_exam,3.5,4.5,413,531,,jpg,,,photo,
+college_entrance_exam,,,480,640,,jpg,50,120,photo,
+self_study_higher_education_exam,1.2,1.6,144,192,,jpg,,,photo,
+nurse_qualification_exam,,,295,413,,jpg,45,,photo,
+teacher_certification,3.0,4.1,360,480,,jpg,,,photo,
+national_computer_rank_exam,3.3,4.8,144,192,,jpg,20,200,photo,
+japanese_language_proficiency_test,3.0,4.0,360,480,,jpg/jpeg,20,200,photo,Minimum size
+national_english_test,3.3,4.8,144,192,,jpg,20,200,photo,
+level_two_computer_exam,3.3,4.8,144,192,,jpg,20,200,photo,Minimum size
+primary_school_teacher_certification,,,150,200,,jpg/jpeg,,200,photo,
+national_civil_service_exam,,,295,413,,jpg,,,photo,
+junior_accountant_exam,,,295,413,,jpg,,,photo,
+cet4_cet6,,,144,192,,jpg,,,photo,
+computer_rank_exam,,,390,567,,jpg,,,photo,
+graduate_school_entrance_exam,,,531,709,,jpg,,,photo,
+social_security_card,,,358,441,,jpg,,,photo,
+electronic_drivers_license,,,260,378,,jpg,,,photo,
+us_visa,,,600,600,,jpg,,,photo,
+japan_visa,,,295,413,,jpg,,,photo,
+korea_visa,,,413,531,,jpg,,,photo,

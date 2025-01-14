@@ -20,5 +20,7 @@
     "key_param": "关键参数",
     "final_image": "最终图像",
     "corrected_image": "修正后图像",
-    "notification": "通知"
+    "notification": "通知",
+    "size_config": "尺寸配置文件",
+    "color_config": "颜色配置文件"
 }
