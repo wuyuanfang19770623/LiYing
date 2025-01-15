@@ -22,5 +22,7 @@
     "corrected_image": "修正后图像",
     "notification": "通知",
     "size_config": "尺寸配置文件",
-    "color_config": "颜色配置文件"
+    "color_config": "颜色配置文件",
+    "preset_color": "预设颜色",
+    "custom_color": "自定义"
 }

@@ -22,5 +22,7 @@
     "corrected_image": "Corrected Image",
     "notification": "Notification",
     "size_config": "Size Config",
-    "color_config": "Color Config"
+    "color_config": "Color Config",
+    "preset_color": "Preset Color",
+    "custom_color": "Custom"
 }

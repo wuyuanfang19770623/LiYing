@@ -136,7 +136,7 @@ class ImageProcessor:
 
             # If y1 is less than 60 pixels from the top of the face detection box, adjust it
             if y1 != 0 and self.photo.face_bbox is not None:
-                if y1 - self.photo.face_bbox[1] < max(int(height / 600 * 60), 60):
+                if int(y1) - int(self.photo.face_bbox[1]) < max(int(height / 600 * 60), 60):
                     y1 = max(int(y1 - (int(height / 600 * 60))), 0)
 
             # Adjust the crop area to ensure the lower body is not too long

@@ -59,19 +59,19 @@ def parse_color(color_string):
         return [255, 255, 255]
     if color_string.startswith('#'):
         return [int(color_string.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)]
-    rgb_match = re.match(r'rgb[a]?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)', color_string)
+    rgb_match = re.match(r'rgba?\((\d+\.?\d*),\s*(\d+\.?\d*),\s*(\d+\.?\d*)(?:,\s*[\d.]+)?\)', color_string)
     if rgb_match:
-        return list(map(int, rgb_match.groups()))
+        return [min(255, max(0, int(float(x)))) for x in rgb_match.groups()]
     return [255, 255, 255]
 
 def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, sheet_rows=3, sheet_cols=3):
     """Process the image with specified parameters."""
     processor = ImageProcessor(img_path, 
-                               yolov8_model_path=yolov8_path,
-                               yunet_model_path=yunet_path,
-                               RMBG_model_path=rmbg_path,
-                               rgb_list=rgb_list, 
-                               y_b=compress)
+                            yolov8_model_path=yolov8_path,
+                            yunet_model_path=yunet_path,
+                            RMBG_model_path=rmbg_path,
+                            rgb_list=rgb_list, 
+                            y_b=compress)
 
     processor.crop_and_correct_image()
 
@@ -90,37 +90,6 @@ def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requiremen
         'corrected_image': processor.photo.image,
     }
 
-def process_and_display(image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type, photo_sheet_size, background_color, compress, change_background, rotate, resize, sheet_rows, sheet_cols):
-    """Process and display the image with given parameters."""
-    rgb_list = parse_color(background_color)
-    image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    temp_image_path = "temp_input_image.jpg"
-    cv2.imwrite(temp_image_path, image_bgr)
-
-    result = process_image(
-        temp_image_path,
-        yolov8_path,
-        yunet_path,
-        rmbg_path,
-        size_config,
-        color_config,
-        photo_type=photo_type,
-        photo_sheet_size=photo_sheet_size,
-        rgb_list=rgb_list,
-        compress=compress,
-        change_background=change_background,
-        rotate=rotate,
-        resize=resize,
-        sheet_rows=sheet_rows,
-        sheet_cols=sheet_cols
-    )
-    
-    os.remove(temp_image_path)
-    final_image_rgb = cv2.cvtColor(result['final_image'], cv2.COLOR_BGR2RGB)
-    corrected_image_rgb = cv2.cvtColor(result['corrected_image'], cv2.COLOR_BGR2RGB)
-    
-    return final_image_rgb, corrected_image_rgb
-
 def create_demo(initial_language):
     """Create the Gradio demo interface."""
     config_manager = ConfigManager(language=initial_language)
@@ -129,15 +98,19 @@ def create_demo(initial_language):
 
     photo_size_configs = config_manager.get_photo_size_configs()
     sheet_size_configs = config_manager.get_sheet_size_configs()
+    color_configs = config_manager.color_config
 
     photo_size_choices = list(photo_size_configs.keys())
     sheet_size_choices = list(sheet_size_configs.keys())
+    color_choices = [t('custom_color', initial_language)] + list(color_configs.keys())
 
     with gr.Blocks(theme=gr.themes.Soft()) as demo:
         language = gr.State(initial_language)
 
         title = gr.Markdown(f"# {t('title', initial_language)}")
-        
+
+        color_change_source = {"source": "custom"}
+
         with gr.Row():
             with gr.Column(scale=1):
                 input_image = gr.Image(type="numpy", label=t('upload_photo', initial_language), height=400)
@@ -151,7 +124,9 @@ def create_demo(initial_language):
                     with gr.TabItem(t('key_param', initial_language)) as key_param_tab:
                         photo_type = gr.Dropdown(choices=photo_size_choices, label=t('photo_type', initial_language))
                         photo_sheet_size = gr.Dropdown(choices=sheet_size_choices, label=t('photo_sheet_size', initial_language))
-                        background_color = gr.ColorPicker(label=t('background_color', initial_language), value="#FFFFFF")
+                        with gr.Row():
+                            preset_color = gr.Dropdown(choices=color_choices, label=t('preset_color', initial_language), value=t('custom_color', initial_language))
+                            background_color = gr.ColorPicker(label=t('background_color', initial_language), value="#FFFFFF")
                         sheet_rows = gr.Slider(minimum=1, maximum=10, step=1, value=3, label=t('sheet_rows', initial_language))
                         sheet_cols = gr.Slider(minimum=1, maximum=10, step=1, value=3, label=t('sheet_cols', initial_language))
                     
@@ -179,15 +154,17 @@ def create_demo(initial_language):
 
         def update_language(lang):
             """Update UI language and reload configs."""
-            nonlocal config_manager, photo_requirements
+            nonlocal config_manager, photo_requirements, color_configs
             config_manager.switch_language(lang)
             photo_requirements.switch_language(lang)
             
             new_photo_size_configs = config_manager.get_photo_size_configs()
             new_sheet_size_configs = config_manager.get_sheet_size_configs()
+            color_configs = config_manager.color_config  # 更新color_configs
             
             new_photo_size_choices = list(new_photo_size_configs.keys())
             new_sheet_size_choices = list(new_sheet_size_configs.keys())
+            new_color_choices = [t('custom_color', lang)] + list(color_configs.keys())
 
             return {
                 title: gr.update(value=f"# {t('title', lang)}"),
@@ -195,6 +172,7 @@ def create_demo(initial_language):
                 lang_dropdown: gr.update(label=t('language', lang)),
                 photo_type: gr.update(choices=new_photo_size_choices, label=t('photo_type', lang), value=new_photo_size_choices[0] if new_photo_size_choices else None),
                 photo_sheet_size: gr.update(choices=new_sheet_size_choices, label=t('photo_sheet_size', lang), value=new_sheet_size_choices[0] if new_sheet_size_choices else None),
+                preset_color: gr.update(choices=new_color_choices, label=t('preset_color', lang)),
                 background_color: gr.update(label=t('background_color', lang)),
                 sheet_rows: gr.update(label=t('sheet_rows', lang)),
                 sheet_cols: gr.update(label=t('sheet_cols', lang)),
@@ -216,6 +194,30 @@ def create_demo(initial_language):
                 result_tab: gr.update(label=t('result', lang)),
                 corrected_image_tab: gr.update(label=t('corrected_image', lang)),
             }
+
+        def update_background_color(preset, lang):
+            """Update background color based on preset selection."""
+            custom_color = t('custom_color', lang)
+            if preset == custom_color:
+                color_change_source["source"] = "custom"
+                return gr.update()
+            
+            if preset in color_configs:
+                color = color_configs[preset]
+                hex_color = f"#{color['R']:02x}{color['G']:02x}{color['B']:02x}"
+                color_change_source["source"] = "preset"
+                return gr.update(value=hex_color)
+            
+            color_change_source["source"] = "custom"
+            return gr.update(value="#FFFFFF")
+
+        def update_preset_color(color, lang):
+            """Update preset color dropdown based on color picker changes."""
+            if color_change_source["source"] == "preset":
+                color_change_source["source"] = "custom"
+                return gr.update()
+            custom_color = t('custom_color', lang)
+            return gr.update(value=custom_color)
 
         def process_and_display(image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type, photo_sheet_size, background_color, compress, change_background, rotate, resize, sheet_rows, sheet_cols):
             """Process and display the image with given parameters."""
@@ -250,11 +252,23 @@ def create_demo(initial_language):
         lang_dropdown.change(
             update_language,
             inputs=[lang_dropdown],
-            outputs=[title, input_image, lang_dropdown, photo_type, photo_sheet_size, background_color, 
-                     sheet_rows, sheet_cols, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
-                     compress, change_background, rotate, resize, process_btn, output_image, 
-                     corrected_output, notification, key_param_tab, advanced_settings_tab,
-                     result_tab, corrected_image_tab]
+            outputs=[title, input_image, lang_dropdown, photo_type, photo_sheet_size, preset_color, background_color, 
+                    sheet_rows, sheet_cols, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
+                    compress, change_background, rotate, resize, process_btn, output_image, 
+                    corrected_output, notification, key_param_tab, advanced_settings_tab,
+                    result_tab, corrected_image_tab]
+        )
+
+        preset_color.change(
+            update_background_color,
+            inputs=[preset_color, lang_dropdown],
+            outputs=[background_color]
+        )
+
+        background_color.change(
+            update_preset_color,
+            inputs=[background_color, lang_dropdown],
+            outputs=[preset_color]
         )
 
         process_btn.click(
