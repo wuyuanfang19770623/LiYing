@@ -33,3 +33,6 @@ Name,PrintWidth,PrintHeight,ElectronicWidth,ElectronicHeight,Resolution,FileForm
 美国签证,,,600,600,,jpg,,,photo,
 日本签证,,,295,413,,jpg,,,photo,
 韩国签证,,,413,531,,jpg,,,photo,
+A4,21.0,29.7,2479,3508,,jpg,,,sheet,A4纸张尺寸
+3R,8.9,12.7,1051,1500,,jpg,,,sheet,3R照片尺寸
+4R,10.2,15.2,1205,1795,,jpg,,,sheet,4R照片尺寸

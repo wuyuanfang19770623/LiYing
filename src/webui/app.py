@@ -127,6 +127,7 @@ def create_demo(initial_language):
                         with gr.Row():
                             preset_color = gr.Dropdown(choices=color_choices, label=t('preset_color', initial_language), value=t('custom_color', initial_language))
                             background_color = gr.ColorPicker(label=t('background_color', initial_language), value="#FFFFFF")
+                        layout_only = gr.Checkbox(label=t('layout_only', initial_language), value=False)
                         sheet_rows = gr.Slider(minimum=1, maximum=10, step=1, value=3, label=t('sheet_rows', initial_language))
                         sheet_cols = gr.Slider(minimum=1, maximum=10, step=1, value=3, label=t('sheet_cols', initial_language))
                     
@@ -174,6 +175,7 @@ def create_demo(initial_language):
                 photo_sheet_size: gr.update(choices=new_sheet_size_choices, label=t('photo_sheet_size', lang), value=new_sheet_size_choices[0] if new_sheet_size_choices else None),
                 preset_color: gr.update(choices=new_color_choices, label=t('preset_color', lang)),
                 background_color: gr.update(label=t('background_color', lang)),
+                layout_only: gr.update(label=t('layout_only', lang)),
                 sheet_rows: gr.update(label=t('sheet_rows', lang)),
                 sheet_cols: gr.update(label=t('sheet_cols', lang)),
                 yolov8_path: gr.update(label=t('yolov8_path', lang)),
@@ -219,7 +221,7 @@ def create_demo(initial_language):
             custom_color = t('custom_color', lang)
             return gr.update(value=custom_color)
 
-        def process_and_display(image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type, photo_sheet_size, background_color, compress, change_background, rotate, resize, sheet_rows, sheet_cols):
+        def process_and_display(image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type, photo_sheet_size, background_color, compress, change_background, rotate, resize, sheet_rows, sheet_cols, layout_only):
             """Process and display the image with given parameters."""
             rgb_list = parse_color(background_color)
             image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
@@ -236,7 +238,7 @@ def create_demo(initial_language):
                 photo_sheet_size=photo_sheet_size,
                 rgb_list=rgb_list,
                 compress=compress,
-                change_background=change_background,
+                change_background=change_background and not layout_only,
                 rotate=rotate,
                 resize=resize,
                 sheet_rows=sheet_rows,
@@ -253,7 +255,7 @@ def create_demo(initial_language):
             update_language,
             inputs=[lang_dropdown],
             outputs=[title, input_image, lang_dropdown, photo_type, photo_sheet_size, preset_color, background_color, 
-                    sheet_rows, sheet_cols, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
+                    sheet_rows, sheet_cols, layout_only, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
                     compress, change_background, rotate, resize, process_btn, output_image, 
                     corrected_output, notification, key_param_tab, advanced_settings_tab,
                     result_tab, corrected_image_tab]
@@ -275,7 +277,7 @@ def create_demo(initial_language):
             process_and_display,
             inputs=[input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
                     photo_type, photo_sheet_size, background_color, compress, change_background, 
-                    rotate, resize, sheet_rows, sheet_cols],
+                    rotate, resize, sheet_rows, sheet_cols, layout_only],
             outputs=[output_image, corrected_output]
         )
 

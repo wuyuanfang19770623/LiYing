@@ -24,5 +24,6 @@
     "size_config": "尺寸配置文件",
     "color_config": "颜色配置文件",
     "preset_color": "预设颜色",
-    "custom_color": "自定义"
+    "custom_color": "自定义",
+    "layout_only": "仅排版（不更换背景）"
 }

@@ -101,6 +101,8 @@ def echo_message(key, **kwargs):
               help='Whether to change the background' if get_language() == 'en' else '是否替换背景')
 @click.option('-sb', '--save-background/--no-save-background', default=False,
               help='Whether to save the image with changed background' if get_language() == 'en' else '是否保存替换背景后的图像')
+@click.option('-lo', '--layout-only', is_flag=True, default=False,
+              help='Only layout the photo without changing background' if get_language() == 'en' else '仅排版照片，不更换背景')
 @click.option('-sr', '--sheet-rows', type=int, default=3,
               help='Number of rows in the photo sheet' if get_language() == 'en' else '照片表格的行数')
 @click.option('-sc', '--sheet-cols', type=int, default=3,
@@ -112,7 +114,7 @@ def echo_message(key, **kwargs):
 @click.option('-sz', '--save-resized/--no-save-resized', default=False,
               help='Whether to save the resized image' if get_language() == 'en' else '是否保存调整尺寸后的图像')
 def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_config, color_config, rgb_list, save_path, 
-        photo_type, photo_sheet_size, compress, save_corrected, change_background, save_background, sheet_rows, 
+        photo_type, photo_sheet_size, compress, save_corrected, change_background, save_background, layout_only, sheet_rows, 
         sheet_cols, rotate, resize, save_resized):
     # Create an instance of the image processor
     processor = ImageProcessor(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, rgb_list, y_b=compress)
@@ -125,7 +127,7 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_con
         echo_message('corrected_saved', path=corrected_path)
 
     # Optional background change
-    if change_background:
+    if change_background and not layout_only:
         processor.change_background()
         if save_background:
             background_path = os.path.splitext(save_path)[0] + '_background' + os.path.splitext(save_path)[1]

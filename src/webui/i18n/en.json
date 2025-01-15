@@ -24,5 +24,6 @@
     "size_config": "Size Config",
     "color_config": "Color Config",
     "preset_color": "Preset Color",
-    "custom_color": "Custom"
+    "custom_color": "Custom",
+    "layout_only": "Layout only (no background change)"
 }
