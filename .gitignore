@@ -118,3 +118,6 @@ src/tool/ext/*.exe
 src/model/*.onnx
 
 *.zip
+
+tests/output
+tests/output/*

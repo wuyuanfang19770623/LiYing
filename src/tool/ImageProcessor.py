@@ -181,9 +181,9 @@ class ImageProcessor:
         :rtype: PhotoEntity
         """
         if rgb_list is not None:
-            if not (isinstance(rgb_list, list) and len(rgb_list) == 3):
+            if not (isinstance(rgb_list, (list, tuple)) and len(rgb_list) == 3):
                 raise ValueError("The RGB value format is incorrect")
-            self.segmentation.rgb_list = rgb_list
+            self.segmentation.rgb_list = tuple(rgb_list)
 
         self.photo.image = self.segmentation.infer(self.photo.image)
         return self.photo
