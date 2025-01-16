@@ -25,5 +25,20 @@
     "color_config": "颜色配置文件",
     "preset_color": "预设颜色",
     "custom_color": "自定义",
-    "layout_only": "仅排版（不更换背景）"
+    "layout_only": "仅排版（不更换背景）",
+    "config_management": "配置管理",
+    "size_config_table": "尺寸配置表",
+    "color_config_table": "颜色配置表",
+    "add_size": "添加尺寸",
+    "update_size": "更新尺寸",
+    "add_color": "添加颜色",
+    "update_color": "更新颜色",
+    "config_notification": "配置通知",
+    "size_config_updated": "尺寸配置更新成功",
+    "color_config_updated": "颜色配置更新成功",
+    "confirm_settings": "确认配置",
+    "save_size": "保存尺寸配置",
+    "save_color": "保存颜色配置",
+    "size_config_row_added": "已添加新的尺寸配置行",
+    "color_config_row_added": "已添加新的颜色配置行"
 }

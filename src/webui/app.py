@@ -6,6 +6,7 @@ import cv2
 import locale
 import json
 import argparse
+import pandas as pd
 from functools import partial
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -59,7 +60,7 @@ def parse_color(color_string):
         return [255, 255, 255]
     if color_string.startswith('#'):
         return [int(color_string.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)]
-    rgb_match = re.match(r'rgba?\((\d+\.?\d*),\s*(\d+\.?\d*),\s*(\d+\.?\d*)(?:,\s*[\d.]+)?\)', color_string)
+    rgb_match = re.match(r'rgba?$(\d+\.?\d*),\s*(\d+\.?\d*),\s*(\d+\.?\d*)(?:,\s*[\d.]+)?$', color_string)
     if rgb_match:
         return [min(255, max(0, int(float(x)))) for x in rgb_match.groups()]
     return [255, 255, 255]
@@ -95,6 +96,17 @@ def create_demo(initial_language):
     config_manager = ConfigManager(language=initial_language)
     config_manager.load_configs()
     photo_requirements = PhotoRequirements(language=initial_language)
+
+    def update_configs():
+        nonlocal photo_size_configs, sheet_size_configs, color_configs, photo_size_choices, sheet_size_choices, color_choices
+        photo_size_configs = config_manager.get_photo_size_configs()
+        sheet_size_configs = config_manager.get_sheet_size_configs()
+        color_configs = config_manager.color_config
+        photo_size_choices = list(photo_size_configs.keys())
+        sheet_size_choices = list(sheet_size_configs.keys())
+        color_choices = [t('custom_color', config_manager.language)] + list(color_configs.keys())
+
+    update_configs()
 
     photo_size_configs = config_manager.get_photo_size_configs()
     sheet_size_configs = config_manager.get_sheet_size_configs()
@@ -141,6 +153,43 @@ def create_demo(initial_language):
                         change_background = gr.Checkbox(label=t('change_background', initial_language), value=True)
                         rotate = gr.Checkbox(label=t('rotate', initial_language), value=False)
                         resize = gr.Checkbox(label=t('resize', initial_language), value=True)
+                        confirm_advanced_settings = gr.Button(t('confirm_settings', initial_language))
+
+                    with gr.TabItem(t('config_management', initial_language)) as config_management_tab:
+                        with gr.Tabs() as config_tabs:
+                            with gr.TabItem(t('size_config', initial_language)) as size_config_tab:
+                                size_df = gr.Dataframe(
+                                    value=pd.DataFrame(
+                                        [
+                                            [name] + list(config.values())
+                                            for name, config in config_manager.size_config.items()
+                                        ],
+                                        columns=['Name'] + (list(next(iter(config_manager.size_config.values())).keys()) if config_manager.size_config else [])
+                                    ),
+                                    interactive=True,
+                                    label=t('size_config_table', initial_language)
+                                )
+                                with gr.Row():
+                                    add_size_btn = gr.Button(t('add_size', initial_language))
+                                    update_size_btn = gr.Button(t('save_size', initial_language))
+
+                            with gr.TabItem(t('color_config', initial_language)) as color_config_tab:
+                                color_df = gr.Dataframe(
+                                    value=pd.DataFrame(
+                                        [
+                                            [name] + list(config.values())
+                                            for name, config in config_manager.color_config.items()
+                                        ],
+                                        columns=['Name', 'R', 'G', 'B', 'Notes']
+                                    ),
+                                    interactive=True,
+                                    label=t('color_config_table', initial_language)
+                                )
+                                with gr.Row():
+                                    add_color_btn = gr.Button(t('add_color', initial_language))
+                                    update_color_btn = gr.Button(t('save_color', initial_language))
+
+                        config_notification = gr.Textbox(label=t('config_notification', initial_language))
 
                 process_btn = gr.Button(t('process_btn', initial_language))
 
@@ -155,13 +204,14 @@ def create_demo(initial_language):
 
         def update_language(lang):
             """Update UI language and reload configs."""
-            nonlocal config_manager, photo_requirements, color_configs
+            nonlocal config_manager, photo_requirements
             config_manager.switch_language(lang)
             photo_requirements.switch_language(lang)
+            update_configs()
             
             new_photo_size_configs = config_manager.get_photo_size_configs()
             new_sheet_size_configs = config_manager.get_sheet_size_configs()
-            color_configs = config_manager.color_config  # 更新color_configs
+            color_configs = config_manager.color_config
             
             new_photo_size_choices = list(new_photo_size_configs.keys())
             new_sheet_size_choices = list(new_sheet_size_configs.keys())
@@ -193,8 +243,50 @@ def create_demo(initial_language):
                 notification: gr.update(label=t('notification', lang)),
                 key_param_tab: gr.update(label=t('key_param', lang)),
                 advanced_settings_tab: gr.update(label=t('advanced_settings', lang)),
+                config_management_tab: gr.update(label=t('config_management', lang)),
+                size_config_tab: gr.update(label=t('size_config', lang)),
+                color_config_tab: gr.update(label=t('color_config', lang)),
+                confirm_advanced_settings: gr.update(value=t('confirm_settings', lang)),
                 result_tab: gr.update(label=t('result', lang)),
                 corrected_image_tab: gr.update(label=t('corrected_image', lang)),
+                size_df: gr.update(
+                    value=pd.DataFrame(
+                        [[name] + list(config.values()) for name, config in config_manager.size_config.items()],
+                        columns=['Name'] + (list(next(iter(config_manager.size_config.values())).keys()) if config_manager.size_config else [])
+                    ),
+                    label=t('size_config_table', lang)
+                ),
+                color_df: gr.update(
+                    value=pd.DataFrame(
+                        [[name] + list(config.values()) for name, config in config_manager.color_config.items()],
+                        columns=['Name', 'R', 'G', 'B', 'Notes']
+                    ),
+                    label=t('color_config_table', lang)
+                ),
+                add_size_btn: gr.update(value=t('add_size', lang)),
+                update_size_btn: gr.update(value=t('save_size', lang)),
+                add_color_btn: gr.update(value=t('add_color', lang)),
+                update_color_btn: gr.update(value=t('save_color', lang)),
+                config_notification: gr.update(label=t('config_notification', lang)),
+            }
+
+        def confirm_advanced_settings_fn(yolov8_path, yunet_path, rmbg_path, size_config, color_config):
+            config_manager.size_file = size_config
+            config_manager.color_file = color_config
+            config_manager.load_configs()
+            update_configs()
+            return {
+                size_df: gr.update(value=pd.DataFrame(
+                    [[name] + list(config.values()) for name, config in config_manager.size_config.items()],
+                    columns=['Name'] + list(next(iter(config_manager.size_config.values())).keys())
+                )),
+                color_df: gr.update(value=pd.DataFrame(
+                    [[name] + list(config.values()) for name, config in config_manager.color_config.items()],
+                    columns=['Name', 'R', 'G', 'B', 'Notes']
+                )),
+                photo_type: gr.update(choices=photo_size_choices),
+                photo_sheet_size: gr.update(choices=sheet_size_choices),
+                preset_color: gr.update(choices=color_choices),
             }
 
         def update_background_color(preset, lang):
@@ -251,14 +343,78 @@ def create_demo(initial_language):
             
             return final_image_rgb, corrected_image_rgb
 
+        def add_size_config(df):
+            """Add a new empty row to the size configuration table."""
+            new_row = pd.DataFrame([['' for _ in df.columns]], columns=df.columns)
+            updated_df = pd.concat([df, new_row], ignore_index=True)
+            return updated_df, t('size_config_row_added', config_manager.language)
+
+        def update_size_config(df):
+            """Save all changes made to the size configuration table and remove empty rows."""
+            updated_config = {}
+            for _, row in df.iterrows():
+                name = row['Name']
+                if name and not row.iloc[1:].isna().all():  # Check if name exists and not all other fields are empty
+                    config = row.to_dict()
+                    config.pop('Name')
+                    updated_config[name] = config
+            
+            # Update the config_manager with the new configuration
+            config_manager.size_config = updated_config
+            config_manager.save_size_config()
+            
+            # Create a new dataframe with the updated configuration
+            new_df = pd.DataFrame(
+                [[name] + list(config.values()) for name, config in updated_config.items()],
+                columns=['Name'] + (list(next(iter(updated_config.values())).keys()) if updated_config else [])
+            )
+            
+            return new_df, t('size_config_updated', config_manager.language)
+
+        def add_color_config(df):
+            """Add a new empty row to the color configuration table."""
+            new_row = pd.DataFrame([['' for _ in df.columns]], columns=df.columns)
+            updated_df = pd.concat([df, new_row], ignore_index=True)
+            return updated_df, t('color_config_row_added', config_manager.language)
+
+        def update_color_config(df):
+            """Save all changes made to the color configuration table and remove empty rows."""
+            updated_config = {}
+            for _, row in df.iterrows():
+                name = row['Name']
+                if name and not row.iloc[1:].isna().all():  # Check if name exists and not all other fields are empty
+                    config = row.to_dict()
+                    config.pop('Name')
+                    updated_config[name] = config
+            
+            # Update the config_manager with the new configuration
+            config_manager.color_config = updated_config
+            config_manager.save_color_config()
+            
+            # Create a new dataframe with the updated configuration
+            new_df = pd.DataFrame(
+                [[name] + list(config.values()) for name, config in updated_config.items()],
+                columns=['Name', 'R', 'G', 'B', 'Notes']
+            )
+            
+            return new_df, t('color_config_updated', config_manager.language)
+
         lang_dropdown.change(
             update_language,
             inputs=[lang_dropdown],
             outputs=[title, input_image, lang_dropdown, photo_type, photo_sheet_size, preset_color, background_color, 
                     sheet_rows, sheet_cols, layout_only, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
-                    compress, change_background, rotate, resize, process_btn, output_image, 
-                    corrected_output, notification, key_param_tab, advanced_settings_tab,
-                    result_tab, corrected_image_tab]
+                    compress, change_background, rotate, resize, process_btn, output_image, size_df, color_df,
+                    corrected_output, notification, key_param_tab, advanced_settings_tab, config_management_tab,confirm_advanced_settings,
+                    size_config_tab, color_config_tab, result_tab, corrected_image_tab,
+                    size_df, color_df, add_size_btn, update_size_btn,
+                    add_color_btn, update_color_btn, config_notification]
+        )
+
+        confirm_advanced_settings.click(
+            confirm_advanced_settings_fn,
+            inputs=[yolov8_path, yunet_path, rmbg_path, size_config, color_config],
+            outputs=[size_df, color_df, photo_type, photo_sheet_size, preset_color]
         )
 
         preset_color.change(
@@ -273,6 +429,12 @@ def create_demo(initial_language):
             outputs=[preset_color]
         )
 
+        add_size_btn.click(add_size_config, inputs=[size_df], outputs=[size_df, config_notification])
+        update_size_btn.click(update_size_config, inputs=[size_df], outputs=[size_df, config_notification])
+
+        add_color_btn.click(add_color_config, inputs=[color_df], outputs=[color_df, config_notification])
+        update_color_btn.click(update_color_config, inputs=[color_df], outputs=[color_df, config_notification])
+
         process_btn.click(
             process_and_display,
             inputs=[input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
@@ -282,7 +444,6 @@ def create_demo(initial_language):
         )
 
     return demo
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="LiYing Photo Processing System")

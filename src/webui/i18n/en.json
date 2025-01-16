@@ -25,5 +25,20 @@
     "color_config": "Color Config",
     "preset_color": "Preset Color",
     "custom_color": "Custom",
-    "layout_only": "Layout only (no background change)"
+    "layout_only": "Layout only (no background change)",
+    "config_management": "Configuration Management",
+    "size_config_table": "Size Configuration Table",
+    "color_config_table": "Color Configuration Table",
+    "add_size": "Add Size",
+    "update_size": "Update Size",
+    "add_color": "Add Color",
+    "update_color": "Update Color",
+    "config_notification": "Configuration Notification",
+    "size_config_updated": "Size configuration updated successfully",
+    "color_config_updated": "Color configuration updated successfully",
+    "confirm_settings": "Confirmation of settings",
+    "save_size": "Save Size Configs",
+    "save_color": "Save Color Configs",
+    "size_config_row_added": "New row added to size configuration",
+    "color_config_row_added": "New row added to color configuration"
 }

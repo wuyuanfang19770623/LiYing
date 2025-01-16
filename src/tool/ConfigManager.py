@@ -1,5 +1,6 @@
 import csv
 import os
+import math
 from typing import Dict, List, Optional, Tuple
 
 class ConfigManager:
@@ -38,18 +39,19 @@ class ConfigManager:
         with open(self.size_file, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                self.size_config[row['Name']] = {
-                    'PrintWidth': float(row['PrintWidth']) if row['PrintWidth'] else None,
-                    'PrintHeight': float(row['PrintHeight']) if row['PrintHeight'] else None,
-                    'ElectronicWidth': int(row['ElectronicWidth']),
-                    'ElectronicHeight': int(row['ElectronicHeight']),
-                    'Resolution': int(row['Resolution']) if row['Resolution'] else None,
-                    'FileFormat': row['FileFormat'],
-                    'FileSizeMin': int(row['FileSizeMin']) if row['FileSizeMin'] else None,
-                    'FileSizeMax': int(row['FileSizeMax']) if row['FileSizeMax'] else None,
-                    'Type': row['Type'],
-                    'Notes': row['Notes']
-                }
+                config = {}
+                for key, value in row.items():
+                    if key == 'Name':
+                        continue
+                    if value == '':
+                        config[key] = None
+                    elif key in ['PrintWidth', 'PrintHeight']:
+                        config[key] = float(value) if value else None
+                    elif key in ['ElectronicWidth', 'ElectronicHeight', 'Resolution', 'FileSizeMin', 'FileSizeMax']:
+                        config[key] = int(value) if value else None
+                    else:
+                        config[key] = value
+                self.size_config[row['Name']] = config
 
     def load_color_config(self):
         """Load color configuration from CSV file."""
@@ -130,7 +132,15 @@ class ConfigManager:
             writer = csv.DictWriter(f, fieldnames=['Name', 'PrintWidth', 'PrintHeight', 'ElectronicWidth', 'ElectronicHeight', 'Resolution', 'FileFormat', 'FileSizeMin', 'FileSizeMax', 'Type', 'Notes'])
             writer.writeheader()
             for name, config in self.size_config.items():
-                writer.writerow({'Name': name, **config})
+                row = {'Name': name}
+                for key, value in config.items():
+                    if value is None:
+                        row[key] = ''
+                    elif isinstance(value, float):
+                        row[key] = '' if math.isnan(value) else f"{value:g}"
+                    else:
+                        row[key] = value
+                writer.writerow(row)
 
     def save_color_config(self):
         """Save color configuration to CSV file."""
