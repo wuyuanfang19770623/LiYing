@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import cv2 as cv
 import numpy as np
@@ -170,7 +171,38 @@ class ImageProcessor:
             self.photo.person_bbox = [0, 0, cropped_image.shape[1], cropped_image.shape[0]]
             return self.photo
         else:
-            raise ValueError('No single person detected.')
+            warnings.warn("No human face detected. Falling back to general object detection.", UserWarning)
+            # No human subject detected, use YOLOv8 for basic object detection
+            yolo_result, _ = self.photo.yolov8_detector.detect(self.photo.img_path)
+            if yolo_result and yolo_result['boxes']:
+                warnings.warn("Object detected. Using the first detected object for processing.", UserWarning)
+                # Use the first detected object's bounding box
+                bbox = yolo_result['boxes'][0]
+                x1, y1, x2, y2 = map(int, bbox)
+                
+                # Adjust crop area to include some margin
+                height, width = self.photo.image.shape[:2]
+                margin = min(height, width) // 10
+                x1 = max(0, x1 - margin)
+                y1 = max(0, y1 - margin)
+                x2 = min(width, x2 + margin)
+                y2 = min(height, y2 + margin)
+                
+                # Crop the image
+                cropped_image = self.photo.image[y1:y2, x1:x2]
+                
+                # Update the PhotoEntity object's image and re-detect
+                self.photo.image = cropped_image
+                self.photo.detect()
+                
+                # Set the bounding box to the full image range
+                self.photo.person_bbox = [0, 0, cropped_image.shape[1], cropped_image.shape[0]]
+            else:
+                warnings.warn("No object detected. Using the entire image.", UserWarning)
+                # If no object is detected, use the entire image
+                self.photo.person_bbox = [0, 0, self.photo.image.shape[1], self.photo.image.shape[0]]
+        
+        return self.photo
 
     def change_background(self, rgb_list=None) -> PhotoEntity:
         """

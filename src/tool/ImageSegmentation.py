@@ -1,8 +1,7 @@
 import onnxruntime as ort
 import numpy as np
 from PIL import Image
-import cv2  # 添加OpenCV库的导入
-
+import cv2
 
 def rgb_to_rgba(rgb):
     if not isinstance(rgb, (list, tuple)) or len(rgb) != 3:
