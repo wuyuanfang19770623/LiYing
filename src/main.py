@@ -5,17 +5,17 @@ import os
 import sys
 
 # Set the project root directory
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(current_dir)
 DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
-MODEL_DIR = os.path.join(PROJECT_ROOT, 'model')
-TOOL_DIR = os.path.join(PROJECT_ROOT, 'tool')
+MODEL_DIR = os.path.join(current_dir, 'model')
+TOOL_DIR = os.path.join(current_dir, 'tool')
+
 # Add data and model directories to sys.path
-sys.path.append(DATA_DIR)
-sys.path.append(MODEL_DIR)
-sys.path.append(TOOL_DIR)
+sys.path.extend([DATA_DIR, MODEL_DIR, TOOL_DIR])
 
 # Set src directory as PYTHONPATH
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+sys.path.insert(0, current_dir)
 
 from tool.ImageProcessor import ImageProcessor
 from tool.PhotoSheetGenerator import PhotoSheetGenerator
@@ -72,18 +72,19 @@ def echo_message(key, **kwargs):
 @click.command()
 @click.argument('img_path', type=click.Path(exists=True, resolve_path=True))
 @click.option('-y', '--yolov8-model-path', type=click.Path(),
-              default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'model/yolov8n-pose.onnx'),
+              default=os.path.join(MODEL_DIR, 'yolov8n-pose.onnx'),
               help='Path to YOLOv8 model' if get_language() == 'en' else 'YOLOv8 模型路径')
 @click.option('-u', '--yunet-model-path', type=click.Path(),
-              default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                   'model/face_detection_yunet_2023mar.onnx'),
+              default=os.path.join(MODEL_DIR, 'face_detection_yunet_2023mar.onnx'),
               help='Path to YuNet model' if get_language() == 'en' else 'YuNet 模型路径')
 @click.option('-r', '--rmbg-model-path', type=click.Path(),
-              default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'model/RMBG-1.4-model.onnx'),
+              default=os.path.join(MODEL_DIR, 'RMBG-1.4-model.onnx'),
               help='Path to RMBG model' if get_language() == 'en' else 'RMBG 模型路径')
 @click.option('-sz', '--size-config', type=click.Path(exists=True),
+              default=os.path.join(DATA_DIR, f'size_{get_language()}.csv'),
               help='Path to size configuration file' if get_language() == 'en' else '尺寸配置文件路径')
 @click.option('-cl', '--color-config', type=click.Path(exists=True),
+              default=os.path.join(DATA_DIR, f'color_{get_language()}.csv'),
               help='Path to color configuration file' if get_language() == 'en' else '颜色配置文件路径')
 @click.option('-b', '--rgb-list', type=RGBListType(), default='0,0,0',
               help='RGB channel values list (comma-separated) for image composition' if get_language() == 'en' else 'RGB 通道值列表（英文逗号分隔），用于图像合成')
@@ -113,9 +114,11 @@ def echo_message(key, **kwargs):
               help='Whether to resize the image' if get_language() == 'en' else '是否调整图像尺寸')
 @click.option('-sz', '--save-resized/--no-save-resized', default=False,
               help='Whether to save the resized image' if get_language() == 'en' else '是否保存调整尺寸后的图像')
+@click.option('-al', '--add-crop-lines/--no-add-crop-lines', default=True, 
+              help='Add crop lines to the photo sheet' if get_language() == 'en' else '在照片表格上添加裁剪线')
 def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_config, color_config, rgb_list, save_path, 
         photo_type, photo_sheet_size, compress, save_corrected, change_background, save_background, layout_only, sheet_rows, 
-        sheet_cols, rotate, resize, save_resized):
+        sheet_cols, rotate, resize, save_resized, add_crop_lines):
     # Create an instance of the image processor
     processor = ImageProcessor(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, rgb_list, y_b=compress)
     photo_requirements = PhotoRequirements(get_language(), size_config, color_config)
@@ -146,7 +149,7 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_con
     # Set photo sheet size
     sheet_width, sheet_height, _ = photo_requirements.get_resize_image_list(photo_sheet_size)
     generator = PhotoSheetGenerator([sheet_width, sheet_height])
-    photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate)
+    photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate, add_crop_lines)
     sheet_path = os.path.splitext(save_path)[0] + '_sheet' + os.path.splitext(save_path)[1]
     generator.save_photo_sheet(photo_sheet_cv, sheet_path)
     echo_message('sheet_saved', path=sheet_path)

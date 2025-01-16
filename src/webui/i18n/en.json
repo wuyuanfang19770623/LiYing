@@ -40,5 +40,6 @@
     "save_size": "Save Size Configs",
     "save_color": "Save Color Configs",
     "size_config_row_added": "New row added to size configuration",
-    "color_config_row_added": "New row added to color configuration"
+    "color_config_row_added": "New row added to color configuration",
+    "add_crop_lines": "Add crop lines"
 }

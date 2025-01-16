@@ -11,11 +11,12 @@ from functools import partial
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 src_dir = os.path.dirname(current_dir)
+project_root = os.path.dirname(src_dir)
 sys.path.insert(0, src_dir)
 
-PROJECT_ROOT = src_dir
+PROJECT_ROOT = project_root
 DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
-TOOL_DIR = os.path.join(PROJECT_ROOT, 'tool')
+TOOL_DIR = os.path.join(src_dir, 'tool')
 MODEL_DIR = os.path.join(src_dir, 'model')
 
 DEFAULT_YOLOV8_PATH = os.path.join(MODEL_DIR, 'yolov8n-pose.onnx')
@@ -65,7 +66,7 @@ def parse_color(color_string):
         return [min(255, max(0, int(float(x)))) for x in rgb_match.groups()]
     return [255, 255, 255]
 
-def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, sheet_rows=3, sheet_cols=3):
+def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True):
     """Process the image with specified parameters."""
     processor = ImageProcessor(img_path, 
                             yolov8_model_path=yolov8_path,
@@ -84,7 +85,7 @@ def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requiremen
 
     sheet_width, sheet_height, _ = photo_requirements.get_resize_image_list(photo_sheet_size)
     generator = PhotoSheetGenerator([sheet_width, sheet_height])
-    photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate)
+    photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate, add_crop_lines)
 
     return {
         'final_image': photo_sheet_cv,
@@ -153,6 +154,7 @@ def create_demo(initial_language):
                         change_background = gr.Checkbox(label=t('change_background', initial_language), value=True)
                         rotate = gr.Checkbox(label=t('rotate', initial_language), value=False)
                         resize = gr.Checkbox(label=t('resize', initial_language), value=True)
+                        add_crop_lines = gr.Checkbox(label=t('add_crop_lines', initial_language), value=True)
                         confirm_advanced_settings = gr.Button(t('confirm_settings', initial_language))
 
                     with gr.TabItem(t('config_management', initial_language)) as config_management_tab:
@@ -237,6 +239,7 @@ def create_demo(initial_language):
                 change_background: gr.update(label=t('change_background', lang)),
                 rotate: gr.update(label=t('rotate', lang)),
                 resize: gr.update(label=t('resize', lang)),
+                add_crop_lines: gr.update(label=t('add_crop_lines', lang)),
                 process_btn: gr.update(value=t('process_btn', lang)),
                 output_image: gr.update(label=t('final_image', lang)),
                 corrected_output: gr.update(label=t('corrected_image', lang)),
@@ -313,7 +316,7 @@ def create_demo(initial_language):
             custom_color = t('custom_color', lang)
             return gr.update(value=custom_color)
 
-        def process_and_display(image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type, photo_sheet_size, background_color, compress, change_background, rotate, resize, sheet_rows, sheet_cols, layout_only):
+        def process_and_display(image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type, photo_sheet_size, background_color, compress, change_background, rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines):
             """Process and display the image with given parameters."""
             rgb_list = parse_color(background_color)
             image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
@@ -334,7 +337,8 @@ def create_demo(initial_language):
                 rotate=rotate,
                 resize=resize,
                 sheet_rows=sheet_rows,
-                sheet_cols=sheet_cols
+                sheet_cols=sheet_cols,
+                add_crop_lines=add_crop_lines
             )
             
             os.remove(temp_image_path)
@@ -404,8 +408,8 @@ def create_demo(initial_language):
             inputs=[lang_dropdown],
             outputs=[title, input_image, lang_dropdown, photo_type, photo_sheet_size, preset_color, background_color, 
                     sheet_rows, sheet_cols, layout_only, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
-                    compress, change_background, rotate, resize, process_btn, output_image, size_df, color_df,
-                    corrected_output, notification, key_param_tab, advanced_settings_tab, config_management_tab,confirm_advanced_settings,
+                    compress, change_background, rotate, resize, add_crop_lines, process_btn, output_image, size_df, color_df,
+                    corrected_output, notification, key_param_tab, advanced_settings_tab, config_management_tab, confirm_advanced_settings,
                     size_config_tab, color_config_tab, result_tab, corrected_image_tab,
                     size_df, color_df, add_size_btn, update_size_btn,
                     add_color_btn, update_color_btn, config_notification]
@@ -439,7 +443,7 @@ def create_demo(initial_language):
             process_and_display,
             inputs=[input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
                     photo_type, photo_sheet_size, background_color, compress, change_background, 
-                    rotate, resize, sheet_rows, sheet_cols, layout_only],
+                    rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines],
             outputs=[output_image, corrected_output]
         )
 

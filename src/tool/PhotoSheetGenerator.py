@@ -19,7 +19,7 @@ class PhotoSheetGenerator:
         cv2_image_rgb = cv2.cvtColor(np.array(pillow_image), cv2.COLOR_RGB2BGR)
         return cv2_image_rgb
 
-    def generate_photo_sheet(self, one_inch_photo_cv2, rows=3, cols=3, rotate=False):
+    def generate_photo_sheet(self, one_inch_photo_cv2, rows=3, cols=3, rotate=False, add_crop_lines=True):
         one_inch_height, one_inch_width = one_inch_photo_cv2.shape[:2]
 
         # Convert OpenCV image data to Pillow image
@@ -33,13 +33,9 @@ class PhotoSheetGenerator:
         # Create photo sheet (white background)
         five_inch_photo = Image.new('RGB', self.five_inch_size, 'white')
 
-        # Create photo with black border
-        bordered_one_inch_photo = Image.new('RGB', (one_inch_width + 2, one_inch_height + 2), 'black')
-        bordered_one_inch_photo.paste(one_inch_photo_pillow, (1, 1))
-
         # Calculate positions for the photos on the sheet
-        total_width = cols * (one_inch_width + 2)
-        total_height = rows * (one_inch_height + 2)
+        total_width = cols * one_inch_width
+        total_height = rows * one_inch_height
 
         if total_width > self.five_inch_size[0] or total_height > self.five_inch_size[1]:
             raise ValueError("The specified layout exceeds the size of the photo sheet")
@@ -50,13 +46,26 @@ class PhotoSheetGenerator:
         # Arrange photos on the sheet in an n*m layout
         for i in range(rows):
             for j in range(cols):
-                x = start_x + j * (one_inch_width + 2)
-                y = start_y + i * (one_inch_height + 2)
-                five_inch_photo.paste(bordered_one_inch_photo, (x, y))
+                x = start_x + j * one_inch_width
+                y = start_y + i * one_inch_height
+                five_inch_photo.paste(one_inch_photo_pillow, (x, y))
 
-        # Draw alignment lines
-        draw = ImageDraw.Draw(five_inch_photo)
-        draw.rectangle([start_x, start_y, self.five_inch_size[0], self.five_inch_size[1]], outline="black")
+        # Draw crop lines if requested
+        if add_crop_lines:
+            draw = ImageDraw.Draw(five_inch_photo)
+            
+            # Draw outer rectangle
+            draw.rectangle([start_x, start_y, start_x + total_width, start_y + total_height], outline="black")
+            draw.rectangle([start_x, start_y, self.five_inch_size[0], self.five_inch_size[1]], outline="black")
+            
+            # Draw inner lines
+            for i in range(1, rows):
+                y = start_y + i * one_inch_height
+                draw.line([(start_x, y), (start_x + total_width, y)], fill="black")
+            
+            for j in range(1, cols):
+                x = start_x + j * one_inch_width
+                draw.line([(x, start_y), (x, start_y + total_height)], fill="black")
 
         # Return the generated photo sheet as a Pillow image
         return self.pillow_to_cv2(five_inch_photo)

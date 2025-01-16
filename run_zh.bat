@@ -100,6 +100,13 @@ if /i "!rotate!"=="是" (
     set rotate=--no-rotate
 )
 
+set /p "add_crop_lines=在相纸上添加裁剪线（是/否，默认为是）： "
+if /i "!add_crop_lines!"=="否" (
+    set add_crop_lines=--no-add-crop-lines
+) else (
+    set add_crop_lines=--add-crop-lines
+)
+
 REM 检查拖放的项目是文件还是目录
 if exist "%INPUT_PATH%\" (
     REM 如果是目录，遍历其中所有的jpg和png文件
@@ -109,7 +116,7 @@ if exist "%INPUT_PATH%\" (
         set "OUTPUT_PATH=%%~dpnf_output%%~xf"
         
         REM 执行Python脚本处理图像
-        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! & pause"
+        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! & pause"
     )
 ) else (
     REM 如果是文件，直接处理该文件
@@ -118,7 +125,7 @@ if exist "%INPUT_PATH%\" (
     set OUTPUT_PATH=%INPUT_DIR%%~n1_output%~x1
     
     REM 由于使用了setlocal enabledelayedexpansion，使用!variable_name!来引用变量
-    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! & pause"
+    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! & pause"
 )
 
 pause

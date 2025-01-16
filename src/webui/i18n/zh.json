@@ -40,5 +40,6 @@
     "save_size": "保存尺寸配置",
     "save_color": "保存颜色配置",
     "size_config_row_added": "已添加新的尺寸配置行",
-    "color_config_row_added": "已添加新的颜色配置行"
+    "color_config_row_added": "已添加新的颜色配置行",
+    "add_crop_lines": "添加裁剪线"
 }
