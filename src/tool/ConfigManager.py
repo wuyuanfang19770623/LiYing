@@ -36,8 +36,8 @@ class ConfigManager:
         if not os.path.exists(self.size_file):
             raise FileNotFoundError(f"Size configuration file {self.size_file} not found.")
 
-        with open(self.size_file, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
+        with open(self.size_file, 'r', encoding='utf-8', newline='') as f:
+            reader = csv.DictReader(f, quoting=csv.QUOTE_MINIMAL)
             for row in reader:
                 config = {}
                 for key, value in row.items():
@@ -58,8 +58,8 @@ class ConfigManager:
         if not os.path.exists(self.color_file):
             raise FileNotFoundError(f"Color configuration file {self.color_file} not found.")
 
-        with open(self.color_file, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
+        with open(self.color_file, 'r', encoding='utf-8', newline='') as f:
+            reader = csv.DictReader(f, quoting=csv.QUOTE_MINIMAL)
             for row in reader:
                 self.color_config[row['Name']] = {
                     'R': int(row['R']),
@@ -129,7 +129,8 @@ class ConfigManager:
     def save_size_config(self):
         """Save size configuration to CSV file."""
         with open(self.size_file, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=['Name', 'PrintWidth', 'PrintHeight', 'ElectronicWidth', 'ElectronicHeight', 'Resolution', 'FileFormat', 'FileSizeMin', 'FileSizeMax', 'Type', 'Notes'])
+            fieldnames = ['Name', 'PrintWidth', 'PrintHeight', 'ElectronicWidth', 'ElectronicHeight', 'Resolution', 'FileFormat', 'FileSizeMin', 'FileSizeMax', 'Type', 'Notes']
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             for name, config in self.size_config.items():
                 row = {'Name': name}
@@ -138,6 +139,8 @@ class ConfigManager:
                         row[key] = ''
                     elif isinstance(value, float):
                         row[key] = '' if math.isnan(value) else f"{value:g}"
+                    elif key == 'Notes':
+                        row[key] = value.replace(',', '|')
                     else:
                         row[key] = value
                 writer.writerow(row)
@@ -145,10 +148,13 @@ class ConfigManager:
     def save_color_config(self):
         """Save color configuration to CSV file."""
         with open(self.color_file, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=['Name', 'R', 'G', 'B', 'Notes'])
+            fieldnames = ['Name', 'R', 'G', 'B', 'Notes']
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             for name, config in self.color_config.items():
-                writer.writerow({'Name': name, **config})
+                row = {'Name': name, **config}
+                row['Notes'] = row['Notes'].replace(',', '|')
+                writer.writerow(row)
 
     def check_size_config_integrity(self, config: Dict) -> Tuple[bool, str]:
         """Check integrity of a size configuration."""
