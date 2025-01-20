@@ -83,8 +83,9 @@ def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requiremen
     if resize:
         processor.resize_image(photo_type)
 
-    sheet_width, sheet_height, _ = photo_requirements.get_resize_image_list(photo_sheet_size)
-    generator = PhotoSheetGenerator([sheet_width, sheet_height])
+    sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
+    sheet_width, sheet_height, sheet_resolution = sheet_info['width'], sheet_info['height'], sheet_info['resolution']
+    generator = PhotoSheetGenerator((sheet_width, sheet_height), sheet_resolution)
     photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate, add_crop_lines)
 
     return {

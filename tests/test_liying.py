@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import json
 import warnings
+from PIL import Image
 
 # Add project root directory to Python path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -44,6 +45,10 @@ class TestLiYing(unittest.TestCase):
             missing_models.append("RMBG")
         return missing_models
 
+    def check_image_dpi(self, image_path):
+        with Image.open(image_path) as img:
+            return img.info.get('dpi')
+
     def test_image_processor(self):
         missing_models = self.check_models_exist()
         if missing_models:
@@ -77,6 +82,11 @@ class TestLiYing(unittest.TestCase):
         processor.save_photos(output_path)
         self.assertTrue(os.path.exists(output_path))
 
+        # Check DPI of saved image
+        dpi = self.check_image_dpi(output_path)
+        self.assertIsNotNone(dpi, "DPI information should be present in the saved image")
+        self.assertEqual(dpi[0], dpi[1], "Horizontal and vertical DPI should be the same")
+
     def test_photo_sheet_generator(self):
         missing_models = self.check_models_exist()
         if missing_models:
@@ -100,7 +110,8 @@ class TestLiYing(unittest.TestCase):
         sheet_sizes = photo_requirements.config_manager.get_sheet_sizes()
         first_sheet_size = next(iter(sheet_sizes))
         sheet_config = photo_requirements.config_manager.get_size_config(first_sheet_size)
-        generator = PhotoSheetGenerator((sheet_config['ElectronicWidth'], sheet_config['ElectronicHeight']))
+        dpi = sheet_config.get('Resolution', 300)
+        generator = PhotoSheetGenerator((sheet_config['ElectronicWidth'], sheet_config['ElectronicHeight']), dpi=dpi)
         sheet = generator.generate_photo_sheet(processor.photo.image, 2, 2)
         
         self.assertIsNotNone(sheet)
@@ -110,83 +121,91 @@ class TestLiYing(unittest.TestCase):
         generator.save_photo_sheet(sheet, output_path)
         self.assertTrue(os.path.exists(output_path))
 
+        # Check DPI of saved photo sheet
+        sheet_dpi = self.check_image_dpi(output_path)
+        self.assertIsNotNone(sheet_dpi, "DPI information should be present in the saved photo sheet")
+        self.assertEqual(sheet_dpi[0], sheet_dpi[1], "Horizontal and vertical DPI should be the same")
+        self.assertEqual(sheet_dpi[0], dpi, f"Photo sheet DPI should be {dpi}")
+
     def test_photo_requirements(self):
         requirements = PhotoRequirements(language='en')
         first_photo_size = self.get_first_valid_photo_size(requirements)
         self.assertIsNotNone(first_photo_size, "No valid photo size found")
         
         # Test getting resize image list
-        size_list = requirements.get_resize_image_list(first_photo_size)
-        self.assertEqual(len(size_list), 3)
-        self.assertIsInstance(size_list[0], int)
-        self.assertIsInstance(size_list[1], int)
-        self.assertIsInstance(size_list[2], str)
+        size_info = requirements.get_resize_image_list(first_photo_size)
+        self.assertIsInstance(size_info, dict)
+        self.assertIn('width', size_info)
+        self.assertIn('height', size_info)
+        self.assertIn('electronic_size', size_info)
+        self.assertIn('print_size', size_info)
+        self.assertIn('resolution', size_info)
 
-def test_config_manager(self):
-    # Test Chinese configuration
-    config_manager_zh = ConfigManager(language='zh')
-    config_manager_zh.load_configs()
-    
-    # Test getting photo size configurations
-    photo_size_configs_zh = config_manager_zh.get_photo_size_configs()
-    self.assertIsInstance(photo_size_configs_zh, dict)
-    self.assertGreater(len(photo_size_configs_zh), 0)
-    
-    # Test getting photo sheet size configurations
-    sheet_size_configs_zh = config_manager_zh.get_sheet_size_configs()
-    self.assertIsInstance(sheet_size_configs_zh, dict)
-    self.assertGreater(len(sheet_size_configs_zh), 0)
+    def test_config_manager(self):
+        # Initialize ConfigManager with Chinese
+        config_manager = ConfigManager(language='zh')
+        config_manager.load_configs()
+        
+        # Test Chinese configuration
+        photo_size_configs_zh = config_manager.get_photo_size_configs()
+        self.assertIsInstance(photo_size_configs_zh, dict)
+        self.assertGreater(len(photo_size_configs_zh), 0)
+        
+        sheet_size_configs_zh = config_manager.get_sheet_size_configs()
+        self.assertIsInstance(sheet_size_configs_zh, dict)
+        self.assertGreater(len(sheet_size_configs_zh), 0)
 
-    # Test English configuration
-    config_manager_en = ConfigManager(language='en')
-    config_manager_en.load_configs()
-    
-    # Test getting photo size configurations
-    photo_size_configs_en = config_manager_en.get_photo_size_configs()
-    self.assertIsInstance(photo_size_configs_en, dict)
-    self.assertGreater(len(photo_size_configs_en), 0)
-    
-    # Test getting photo sheet size configurations
-    sheet_size_configs_en = config_manager_en.get_sheet_size_configs()
-    self.assertIsInstance(sheet_size_configs_en, dict)
-    self.assertGreater(len(sheet_size_configs_en), 0)
+        # Switch to English
+        config_manager.switch_language('en')
+        
+        # Test English configuration
+        photo_size_configs_en = config_manager.get_photo_size_configs()
+        self.assertIsInstance(photo_size_configs_en, dict)
+        self.assertGreater(len(photo_size_configs_en), 0)
+        
+        sheet_size_configs_en = config_manager.get_sheet_size_configs()
+        self.assertIsInstance(sheet_size_configs_en, dict)
+        self.assertGreater(len(sheet_size_configs_en), 0)
 
-    # Check if key sets are the same
-    self.assertEqual(set(photo_size_configs_zh.keys()), set(photo_size_configs_en.keys()))
+        # Check if some common sizes exist
+        common_sizes_zh = ['一寸', '二寸 (证件照)', '五寸', '六寸']
+        common_sizes_en = ['One Inch', 'Two Inch (ID Photo)', 'Five Inch', 'Six Inch']
+        
+        # Switch back to Chinese for checking Chinese sizes
+        config_manager.switch_language('zh')
+        for size_zh in common_sizes_zh:
+            self.assertIn(size_zh, photo_size_configs_zh, f"Chinese config should contain {size_zh}")
+        
+        # Switch to English for checking English sizes
+        config_manager.switch_language('en')
+        for size_en in common_sizes_en:
+            self.assertTrue(any(size_en.lower() in key.lower() for key in photo_size_configs_en.keys()), 
+                            f"English config should contain a key with {size_en}")
 
-    # Check if some common sizes exist
-    common_sizes_zh = ['一寸', '二寸', '五寸', '六寸']
-    common_sizes_en = ['one_inch', 'two_inch', 'five_inch', 'six_inch']
-    
-    for size_zh, size_en in zip(common_sizes_zh, common_sizes_en):
-        self.assertIn(size_zh, photo_size_configs_zh, f"Chinese config should contain {size_zh}")
-        self.assertIn(size_en, photo_size_configs_en, f"English config should contain {size_en}")
+        # Test language switching functionality
+        self.assertEqual(config_manager.language, 'en')
+        config_manager.switch_language('zh')
+        self.assertEqual(config_manager.language, 'zh')
 
-    # Test language switching functionality
-    config_manager = ConfigManager(language='zh')
-    self.assertEqual(config_manager.language, 'zh')
-    config_manager.switch_language('en')
-    self.assertEqual(config_manager.language, 'en')
+        # Test if configuration file paths are correctly updated
+        self.assertTrue(config_manager.size_file.endswith('size_zh.csv'))
+        self.assertTrue(config_manager.color_file.endswith('color_zh.csv'))
 
-    # Test if configuration file paths are correctly updated
-    self.assertTrue(config_manager.size_file.endswith('size_en.csv'))
-    self.assertTrue(config_manager.color_file.endswith('color_en.csv'))
-
-    # Test i18n JSON files
-    i18n_dir = os.path.join(project_root, 'src', 'webui', 'i18n')
-    
-    with open(os.path.join(i18n_dir, 'en.json'), 'r', encoding='utf-8') as f:
-        en_i18n = json.load(f)
-    
-    with open(os.path.join(i18n_dir, 'zh.json'), 'r', encoding='utf-8') as f:
-        zh_i18n = json.load(f)
-    
-    # Check if i18n files have the same keys
-    self.assertEqual(set(en_i18n.keys()), set(zh_i18n.keys()))
-    
-    # Check if at least one value is different
-    different_values = [key for key in en_i18n.keys() if en_i18n[key] != zh_i18n[key]]
-    self.assertGreater(len(different_values), 0, "English and Chinese i18n files should have different translations")
+        # Test i18n JSON files
+        i18n_dir = os.path.join(project_root, 'src', 'webui', 'i18n')
+        
+        with open(os.path.join(i18n_dir, 'en.json'), 'r', encoding='utf-8') as f:
+            en_i18n = json.load(f)
+        
+        with open(os.path.join(i18n_dir, 'zh.json'), 'r', encoding='utf-8') as f:
+            zh_i18n = json.load(f)
+        
+        # Check if i18n files have the same keys
+        self.assertEqual(set(en_i18n.keys()), set(zh_i18n.keys()))
+        
+        # Check if at least one value is different
+        different_values = [key for key in en_i18n.keys() if en_i18n[key] != zh_i18n[key]]
+        self.assertGreater(len(different_values), 0, "English and Chinese i18n files should have different translations")
 
 
 if __name__ == '__main__':

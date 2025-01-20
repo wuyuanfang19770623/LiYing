@@ -35,6 +35,8 @@ class PhotoEntity:
         self.face_bbox = None
         self.face_width = None
         self.face_height = None
+        self.print_size = None
+        self.resolution = None
         self.detect()
 
     def _correct_image_orientation(self, image_path):
@@ -84,6 +86,13 @@ class PhotoEntity:
 
         # Convert the compressed bytes back to OpenCV image format
         self.image = cv.imdecode(np.frombuffer(compressed_bytes, np.uint8), cv.IMREAD_COLOR)
+
+    def get_print_info(self):
+        """Get the print size and resolution information."""
+        return {
+            'print_size': self.print_size,
+            'resolution': self.resolution
+        }
 
     def detect(self, detect_person=True, detect_face=True):
         """

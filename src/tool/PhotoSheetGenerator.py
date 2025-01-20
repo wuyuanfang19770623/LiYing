@@ -2,10 +2,10 @@ import cv2
 from PIL import Image, ImageDraw
 import numpy as np
 
-
 class PhotoSheetGenerator:
-    def __init__(self, five_inch_size=(1050, 1500)):
+    def __init__(self, five_inch_size=(1050, 1500), dpi=300):
         self.five_inch_size = five_inch_size
+        self.dpi = dpi
 
     @staticmethod
     def cv2_to_pillow(cv2_image):
@@ -67,6 +67,9 @@ class PhotoSheetGenerator:
                 x = start_x + j * one_inch_width
                 draw.line([(x, start_y), (x, start_y + total_height)], fill="black")
 
+        # Set the DPI information
+        five_inch_photo.info['dpi'] = (self.dpi, self.dpi)
+
         # Return the generated photo sheet as a Pillow image
         return self.pillow_to_cv2(five_inch_photo)
 
@@ -78,6 +81,6 @@ class PhotoSheetGenerator:
             raise ValueError("output_path must be a valid image file path ending with .png, .jpg, or .jpeg")
         try:
             photo_sheet = self.cv2_to_pillow(photo_sheet_cv)
-            photo_sheet.save(output_path)
+            photo_sheet.save(output_path, dpi=(self.dpi, self.dpi))
         except Exception as e:
             raise IOError(f"Failed to save photo: {e}")
