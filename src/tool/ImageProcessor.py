@@ -1,7 +1,11 @@
 import os
+import warnings
 
 import cv2 as cv
 import numpy as np
+
+from PIL import Image
+from io import BytesIO
 
 from ImageSegmentation import ImageSegmentation
 from PhotoEntity import PhotoEntity
@@ -136,7 +140,7 @@ class ImageProcessor:
 
             # If y1 is less than 60 pixels from the top of the face detection box, adjust it
             if y1 != 0 and self.photo.face_bbox is not None:
-                if y1 - self.photo.face_bbox[1] < max(int(height / 600 * 60), 60):
+                if int(y1) - int(self.photo.face_bbox[1]) < max(int(height / 600 * 60), 60):
                     y1 = max(int(y1 - (int(height / 600 * 60))), 0)
 
             # Adjust the crop area to ensure the lower body is not too long
@@ -170,7 +174,38 @@ class ImageProcessor:
             self.photo.person_bbox = [0, 0, cropped_image.shape[1], cropped_image.shape[0]]
             return self.photo
         else:
-            raise ValueError('No single person detected.')
+            warnings.warn("No human face detected. Falling back to general object detection.", UserWarning)
+            # No human subject detected, use YOLOv8 for basic object detection
+            yolo_result, _ = self.photo.yolov8_detector.detect(self.photo.img_path)
+            if yolo_result and yolo_result['boxes']:
+                warnings.warn("Object detected. Using the first detected object for processing.", UserWarning)
+                # Use the first detected object's bounding box
+                bbox = yolo_result['boxes'][0]
+                x1, y1, x2, y2 = map(int, bbox)
+                
+                # Adjust crop area to include some margin
+                height, width = self.photo.image.shape[:2]
+                margin = min(height, width) // 10
+                x1 = max(0, x1 - margin)
+                y1 = max(0, y1 - margin)
+                x2 = min(width, x2 + margin)
+                y2 = min(height, y2 + margin)
+                
+                # Crop the image
+                cropped_image = self.photo.image[y1:y2, x1:x2]
+                
+                # Update the PhotoEntity object's image and re-detect
+                self.photo.image = cropped_image
+                self.photo.detect()
+                
+                # Set the bounding box to the full image range
+                self.photo.person_bbox = [0, 0, cropped_image.shape[1], cropped_image.shape[0]]
+            else:
+                warnings.warn("No object detected. Using the entire image.", UserWarning)
+                # If no object is detected, use the entire image
+                self.photo.person_bbox = [0, 0, self.photo.image.shape[1], self.photo.image.shape[0]]
+        
+        return self.photo
 
     def change_background(self, rgb_list=None) -> PhotoEntity:
         """
@@ -181,31 +216,25 @@ class ImageProcessor:
         :rtype: PhotoEntity
         """
         if rgb_list is not None:
-            if not (isinstance(rgb_list, list) and len(rgb_list) == 3):
+            if not (isinstance(rgb_list, (list, tuple)) and len(rgb_list) == 3):
                 raise ValueError("The RGB value format is incorrect")
-            self.segmentation.rgb_list = rgb_list
+            self.segmentation.rgb_list = tuple(rgb_list)
 
         self.photo.image = self.segmentation.infer(self.photo.image)
         return self.photo
 
     def resize_image(self, photo_type):
-        """
-        Resize the image proportionally according to the specified photo type.
-
-        :param photo_type: The type of the photo
-        """
-        # Get the target dimensions
-        width, height, _ = self.photo_requirements_detector.get_resize_image_list(photo_type)
-        # print(width, height)
-
+        # Get the target dimensions and other info
+        photo_info = self.photo_requirements_detector.get_resize_image_list(photo_type)
+        width, height = photo_info['width'], photo_info['height']
+        
         # Get the original image dimensions
         orig_height, orig_width = self.photo.image.shape[:2]
-        # print(orig_width, orig_height)
-
+        
         # Check if the dimensions are integer multiples
         is_width_multiple = (orig_width % width == 0) if orig_width >= width else (width % orig_width == 0)
         is_height_multiple = (orig_height % height == 0) if orig_height >= height else (height % orig_height == 0)
-
+        
         if is_width_multiple and is_height_multiple:
             # Resize the image proportionally
             self.photo.image = cv.resize(self.photo.image, (width, height), interpolation=cv.INTER_AREA)
@@ -215,32 +244,31 @@ class ImageProcessor:
             original_width, original_height = original_size
             crop_width = original_width
             crop_height = int(crop_width / aspect_ratio)
-
             if crop_height > original_height:
                 crop_height = original_height
                 crop_width = int(crop_height * aspect_ratio)
-
             x_start = (original_width - crop_width) // 2
             y_start = 0
-
             return x_start, x_start + crop_width, y_start, y_start + crop_height
 
         x1, x2, y1, y2 = get_crop_coordinates((orig_width, orig_height), width / height)
-        # print(x1, x2, y1, y2)
-
         cropped_image = self.photo.image[y1:y2, x1:x2]
-
+        
         # Update the PhotoEntity object's image
         self.photo.image = cropped_image
-
+        
         # Resize the image proportionally
         self.photo.image = cv.resize(self.photo.image, (width, height), interpolation=cv.INTER_AREA)
+        
+        # Store the actual print size and resolution in the PhotoEntity
+        self.photo.print_size = photo_info['print_size']
+        self.photo.resolution = photo_info['resolution']
+        
         return self.photo.image
 
     def save_photos(self, save_path: str, y_b=False) -> None:
         """
         Save the image to the specified path.
-
         :param save_path: The path to save the image
         :param y_b: Whether to compress the image
         """
@@ -254,22 +282,28 @@ class ImageProcessor:
             base_name = base_name[:200] + ext  # Ensure that filenames do not exceed 200 characters
             save_path = os.path.join(dir_name, base_name)
 
+        # Convert OpenCV image to PIL Image
+        pil_image = Image.fromarray(cv.cvtColor(self.photo.image, cv.COLOR_BGR2RGB))
+
+        # Get the DPI from the photo entity
+        if isinstance(self.photo.resolution, int):
+            dpi = self.photo.resolution
+        elif isinstance(self.photo.resolution, str):
+            dpi = int(self.photo.resolution.replace('dpi', ''))
+        else:
+            dpi = 300  # Default DPI if resolution is not set
+
+        # Set the DPI metadata
+        pil_image.info['dpi'] = (dpi, dpi)
+
         if y_b:
-            ext = os.path.splitext(save_path)[1].lower()
-            encode_format = '.jpg' if ext in ['.jpg', '.jpeg'] else '.png' if ext == '.png' else None
-            if encode_format is None:
-                raise ValueError(f"Unsupported file format: {ext}")
-
-            is_success, buffer = cv.imencode(encode_format, self.photo.image)
-            if not is_success:
-                raise ValueError("Failed to encode the image to bytes")
-
-            image_bytes = buffer.tobytes()
-
-            compressed_bytes = self.photo.ImageCompressor_detector.compress_image_from_bytes(image_bytes)
-
-            compressed_image = cv.imdecode(np.frombuffer(compressed_bytes, np.uint8), cv.IMREAD_COLOR)
-            self.photo.image = compressed_image
-
-        cv.imwrite(save_path, self.photo.image)
+            # Compress the image
+            buffer = BytesIO()
+            pil_image.save(buffer, format="JPEG", quality=85, dpi=(dpi, dpi))
+            compressed_bytes = buffer.getvalue()
+            compressed_image = Image.open(BytesIO(compressed_bytes))
+            compressed_image.save(save_path, dpi=(dpi, dpi))
+        else:
+            # Save the image without compression
+            pil_image.save(save_path, dpi=(dpi, dpi))
 
