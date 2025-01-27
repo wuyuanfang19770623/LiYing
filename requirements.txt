@@ -2,7 +2,8 @@ click
 colorama
 mozjpeg_lossless_optimization
 onnxruntime>=1.14.0
-gradio>=3.9.1
+orjson>=3.10.7
+gradio>=4.44.1
 Pillow
 opencv-python
 numpy

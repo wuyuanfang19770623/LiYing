@@ -6,7 +6,7 @@ REM 获取当前批处理文件的目录
 set SCRIPT_DIR=%~dp0
 
 REM 设置Python解释器路径和项目目录
-set PYTHON_EXE=%SCRIPT_DIR%_myPython\python.exe
+set PYTHON_EXE=%SCRIPT_DIR%python-embed\python.exe
 set SCRIPT_PATH=%SCRIPT_DIR%src\main.py
 
 REM 检查是否有文件或目录被拖放

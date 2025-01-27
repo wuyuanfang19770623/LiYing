@@ -6,7 +6,7 @@ REM Get the current batch file directory
 set SCRIPT_DIR=%~dp0
 
 REM Set Python interpreter path and project directory
-set PYTHON_EXE=%SCRIPT_DIR%_myPython\python.exe
+set PYTHON_EXE=%SCRIPT_DIR%python-embed\python.exe
 set SCRIPT_PATH=%SCRIPT_DIR%src\main.py
 
 REM Check if files or directories were dragged and dropped
