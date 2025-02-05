@@ -66,6 +66,7 @@ class PhotoRequirements:
             'width': width,
             'height': height,
             'resolution': resolution,
+            'file_format': requirements['FileFormat'],
             'electronic_size': f"{width}px x {height}px",
             'print_size': f"{actual_print_width_cm:.2f}cm x {actual_print_height_cm:.2f}cm"
         }

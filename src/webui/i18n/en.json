@@ -41,5 +41,11 @@
     "save_color": "Save Color Configs",
     "size_config_row_added": "New row added to size configuration",
     "color_config_row_added": "New row added to color configuration",
-    "add_crop_lines": "Add crop lines"
+    "add_crop_lines": "Add crop lines",
+    "save_image": "Save Image",
+    "save_corrected": "Save Corrected Image",
+    "save_path": "Save Path",
+    "no_image_to_save": "No image to save",
+    "image_saved_success": "Image saved successfully at {path}",
+    "image_save_error": "Error saving image: {error}"
 }

@@ -1,3 +1,4 @@
+import time
 import gradio as gr
 import os
 import sys
@@ -7,6 +8,7 @@ import locale
 import json
 import argparse
 import pandas as pd
+from PIL import Image
 from functools import partial
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -18,6 +20,7 @@ PROJECT_ROOT = project_root
 DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
 TOOL_DIR = os.path.join(src_dir, 'tool')
 MODEL_DIR = os.path.join(src_dir, 'model')
+SAVE_IMG_DIR = os.path.join(PROJECT_ROOT, 'output')
 
 DEFAULT_YOLOV8_PATH = os.path.join(MODEL_DIR, 'yolov8n-pose.onnx')
 DEFAULT_YUNET_PATH = os.path.join(MODEL_DIR, 'face_detection_yunet_2023mar.onnx')
@@ -93,6 +96,26 @@ def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requiremen
         'corrected_image': processor.photo.image,
     }
 
+def save_image(image, filename, file_format='png', resolution=300):
+    """
+    Save the image, supporting different formats and resolutions
+    
+    :param image: numpy image array
+    :param filename: name of the file to save
+    :param file_format: file format, such as png, jpg, tif, etc., default is png
+    :param resolution: image resolution (DPI), default is 300
+    """
+
+    if not filename.lower().endswith(file_format):
+        filename = f"{os.path.splitext(filename)[0]}.{file_format}"
+    
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    
+    pil_image = Image.fromarray(image)
+    pil_image.info['dpi'] = (resolution, resolution)
+    pil_image.save(filename, dpi=(resolution, resolution))
+
+
 def create_demo(initial_language):
     """Create the Gradio demo interface."""
     config_manager = ConfigManager(language=initial_language)
@@ -124,6 +147,9 @@ def create_demo(initial_language):
         title = gr.Markdown(f"# {t('title', initial_language)}")
 
         color_change_source = {"source": "custom"}
+
+        current_file_format = 'png'
+        current_resolution = 300
 
         with gr.Row():
             with gr.Column(scale=1):
@@ -200,10 +226,48 @@ def create_demo(initial_language):
                 with gr.Tabs() as result_tabs:
                     with gr.TabItem(t('result', initial_language)) as result_tab:
                         output_image = gr.Image(label=t('final_image', initial_language), height=800)
+                        with gr.Row():
+                            save_final_btn = gr.Button(t('save_image', initial_language))
+                            save_final_path = gr.Textbox(label=t('save_path', initial_language), value=SAVE_IMG_DIR)
                     with gr.TabItem(t('corrected_image', initial_language)) as corrected_image_tab:
                         corrected_output = gr.Image(label=t('corrected_image', initial_language), height=800)
-                
+                        with gr.Row():
+                            save_corrected_btn = gr.Button(t('save_corrected', initial_language))
+                            save_corrected_path = gr.Textbox(label=t('save_path', initial_language), value=SAVE_IMG_DIR)
                 notification = gr.Textbox(label=t('notification', initial_language))
+
+        def process_and_display_wrapper(input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
+                                        photo_type, photo_sheet_size, background_color, compress, change_background, 
+                                        rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines):
+            nonlocal current_file_format, current_resolution
+            result = process_and_display(
+                input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
+                photo_type, photo_sheet_size, background_color, compress, change_background, 
+                rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines
+            )
+            
+            if result:
+                final_image, corrected_image, file_format, resolution = result
+                current_file_format = file_format if file_format else 'png'
+                current_resolution = resolution if resolution else 300
+                return final_image, corrected_image
+            return None, None
+
+        def save_image_handler(image, path, lang, photo_type, photo_sheet_size, background_color):
+            nonlocal current_file_format, current_resolution
+            if image is None:
+                return t('no_image_to_save', lang)
+            
+            if os.path.isdir(path):
+                filename = os.path.join(path, f"{photo_sheet_size}_{photo_type}_{str(background_color)}_{str(int(time.time()))}.{current_file_format}")
+            else:
+                filename = os.path.splitext(path)[0] + f".{current_file_format}"
+            filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
+            try:
+                save_image(image, filename, current_file_format, current_resolution)
+                return t('image_saved_success', lang).format(path=filename)
+            except Exception as e:
+                return t('image_save_error', lang).format(error=str(e))
 
         def update_language(lang):
             """Update UI language and reload configs."""
@@ -244,6 +308,10 @@ def create_demo(initial_language):
                 process_btn: gr.update(value=t('process_btn', lang)),
                 output_image: gr.update(label=t('final_image', lang)),
                 corrected_output: gr.update(label=t('corrected_image', lang)),
+                save_final_btn: gr.update(value=t('save_image', lang)),
+                save_final_path: gr.update(label=t('save_path', lang)),
+                save_corrected_btn: gr.update(value=t('save_corrected', lang)),
+                save_corrected_path: gr.update(label=t('save_path', lang)),
                 notification: gr.update(label=t('notification', lang)),
                 key_param_tab: gr.update(label=t('key_param', lang)),
                 advanced_settings_tab: gr.update(label=t('advanced_settings', lang)),
@@ -341,12 +409,20 @@ def create_demo(initial_language):
                 sheet_cols=sheet_cols,
                 add_crop_lines=add_crop_lines
             )
-            
+
             os.remove(temp_image_path)
+            
+            sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
+            file_format = sheet_info.get('file_format', 'png').lower()
+            if file_format == 'jpg':
+                file_format = 'jpeg'
+            resolution = sheet_info.get('resolution', 300)
+            
             final_image_rgb = cv2.cvtColor(result['final_image'], cv2.COLOR_BGR2RGB)
             corrected_image_rgb = cv2.cvtColor(result['corrected_image'], cv2.COLOR_BGR2RGB)
-            
-            return final_image_rgb, corrected_image_rgb
+
+            return final_image_rgb, corrected_image_rgb, file_format, resolution
+
 
         def add_size_config(df):
             """Add a new empty row to the size configuration table."""
@@ -410,7 +486,8 @@ def create_demo(initial_language):
             outputs=[title, input_image, lang_dropdown, photo_type, photo_sheet_size, preset_color, background_color, 
                     sheet_rows, sheet_cols, layout_only, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
                     compress, change_background, rotate, resize, add_crop_lines, process_btn, output_image, size_df, color_df,
-                    corrected_output, notification, key_param_tab, advanced_settings_tab, config_management_tab, confirm_advanced_settings,
+                    corrected_output, notification, key_param_tab, advanced_settings_tab, config_management_tab, confirm_advanced_settings,save_final_btn, save_final_path,
+                    save_corrected_btn, save_corrected_path,
                     size_config_tab, color_config_tab, result_tab, corrected_image_tab,
                     size_df, color_df, add_size_btn, update_size_btn,
                     add_color_btn, update_color_btn, config_notification]
@@ -441,13 +518,25 @@ def create_demo(initial_language):
         update_color_btn.click(update_color_config, inputs=[color_df], outputs=[color_df, config_notification])
 
         process_btn.click(
-            process_and_display,
+            process_and_display_wrapper,
             inputs=[input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
                     photo_type, photo_sheet_size, background_color, compress, change_background, 
                     rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines],
             outputs=[output_image, corrected_output]
         )
+        
+        save_final_btn.click(
+            save_image_handler,
+            inputs=[output_image, save_final_path, lang_dropdown, photo_type, photo_sheet_size, background_color],
+            outputs=[notification]
+        )
 
+        save_corrected_btn.click(
+            save_image_handler,
+            inputs=[corrected_output, save_corrected_path, lang_dropdown, photo_type, photo_sheet_size, background_color],
+            outputs=[notification]
+        )
+    
     return demo
 
 if __name__ == "__main__":

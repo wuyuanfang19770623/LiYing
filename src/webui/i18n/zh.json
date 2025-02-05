@@ -41,5 +41,11 @@
     "save_color": "保存颜色配置",
     "size_config_row_added": "已添加新的尺寸配置行",
     "color_config_row_added": "已添加新的颜色配置行",
-    "add_crop_lines": "添加裁剪线"
+    "add_crop_lines": "添加裁剪线",
+    "save_image": "保存图像",
+    "save_corrected": "保存更正后的图像",
+    "save_path": "保存路径",
+    "no_image_to_save": "暂无需要保存的图像",
+    "image_saved_success": "图像已在 {path} 成功保存",
+    "image_save_error": "保存图像出错: {error}"
 }

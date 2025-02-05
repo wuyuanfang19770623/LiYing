@@ -110,6 +110,9 @@ venv.bak/
 _myPython
 _myPython/*
 
+python-embed
+python-embed/*
+
 data/*.jpg
 data/*.jepg
 data/*.png
@@ -121,3 +124,6 @@ src/model/*.onnx
 
 tests/output
 tests/output/*
+
+output
+output/*
