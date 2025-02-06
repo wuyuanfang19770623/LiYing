@@ -162,8 +162,16 @@ def create_demo(initial_language):
 
                 with gr.Tabs() as tabs:
                     with gr.TabItem(t('key_param', initial_language)) as key_param_tab:
-                        photo_type = gr.Dropdown(choices=photo_size_choices, label=t('photo_type', initial_language))
-                        photo_sheet_size = gr.Dropdown(choices=sheet_size_choices, label=t('photo_sheet_size', initial_language))
+                        photo_type = gr.Dropdown(
+                            choices=photo_size_choices,
+                            label=t('photo_type', initial_language),
+                            value=photo_size_choices[0] if photo_size_choices else None
+                        )
+                        photo_sheet_size = gr.Dropdown(
+                            choices=sheet_size_choices,
+                            label=t('photo_sheet_size', initial_language),
+                            value=sheet_size_choices[0] if sheet_size_choices else None
+                        )
                         with gr.Row():
                             preset_color = gr.Dropdown(choices=color_choices, label=t('preset_color', initial_language), value=t('custom_color', initial_language))
                             background_color = gr.ColorPicker(label=t('background_color', initial_language), value="#FFFFFF")
@@ -257,15 +265,36 @@ def create_demo(initial_language):
             nonlocal current_file_format, current_resolution
             if image is None:
                 return t('no_image_to_save', lang)
-            
-            if os.path.isdir(path):
-                filename = os.path.join(path, f"{photo_sheet_size}_{photo_type}_{str(background_color)}_{str(int(time.time()))}.{current_file_format}")
+
+            if not path.strip():
+                path = SAVE_IMG_DIR
+
+            path = os.path.normpath(path)
+
+            if os.path.exists(path):
+                is_dir = os.path.isdir(path)
             else:
-                filename = os.path.splitext(path)[0] + f".{current_file_format}"
-            filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
+                file_ext = os.path.splitext(path)[1]
+                is_dir = file_ext == ''
+
+            if is_dir:
+                os.makedirs(path, exist_ok=True)
+                filename = f"{photo_sheet_size}_{photo_type}_{str(background_color)}_{int(time.time())}.{current_file_format}"
+                full_path = os.path.join(path, filename)
+            else:
+                dir_name = os.path.dirname(path)
+                base_name, ext = os.path.splitext(os.path.basename(path))
+                base_name = re.sub(r'[<>:"/\\|?*]', '_', base_name)  # 仅过滤文件名非法字符
+                filename = f"{base_name}.{current_file_format}"
+
+                if dir_name:
+                    os.makedirs(dir_name, exist_ok=True)
+
+                full_path = os.path.join(dir_name, filename) if dir_name else filename
+
             try:
-                save_image(image, filename, current_file_format, current_resolution)
-                return t('image_saved_success', lang).format(path=filename)
+                save_image(image, full_path, current_file_format, current_resolution)
+                return t('image_saved_success', lang).format(path=full_path)
             except Exception as e:
                 return t('image_save_error', lang).format(error=str(e))
 
