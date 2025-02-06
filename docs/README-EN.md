@@ -28,7 +28,27 @@ LiYing can run completely offline. All image processing operations are performed
 
 ### Bundled Package
 
-If you are a Windows user and do not need to review the code, you can [download the bundled package](https://github.com/aoguai/LiYing/releases/latest) (tested on Windows 7 SP1 & Windows 10). Extract it and drag your images or directory into `run_en.bat` to start LiYing.
+If you are a Windows user and do not need to review the code, you can [download the bundled package](https://github.com/aoguai/LiYing/releases/latest) (tested on Windows 7 SP1 & Windows 10).  
+
+The bundled package does not include any models. You can refer to the [Downloading the Required Models](https://github.com/aoguai/LiYing/blob/master/docs/README-EN.md#downloading-the-required-models) section for instructions on downloading the models and placing them in the correct directory.  
+
+If you encounter issues while running the program, please first check the [Prerequisites](https://github.com/aoguai/LiYing/blob/master/docs/README-EN.md#prerequisites) section to ensure your environment is properly set up. If everything is fine, you can ignore this step.  
+
+#### Running the bundled package  
+
+Run the BAT script:  
+```shell
+cd LiYing
+run.bat ./images/test1.jpg
+```  
+
+Run the WebUI interface:  
+```shell
+# Run WebUI
+cd LiYing
+run_webui.bat
+# Open your browser and visit 127.0.0.1:7860
+```
 
 ### Setup and Installation
 
@@ -63,7 +83,7 @@ cd LiYing ## Enter the LiYing directory
 pip install -r requirements.txt # Install Python helpers' dependencies
 ```
 
-**Note: If you are using Windows 7, ensure you have at least Windows 7 SP1 and `onnxruntime==1.14.0`.**
+**Note: If you are using Windows 7, ensure you have at least Windows 7 SP1 and `onnxruntime==1.14.0, orjson==3.10.7, gradio==4.44.1`.**
 
 #### Downloading the Required Models
 
@@ -77,9 +97,18 @@ Download the models used by the project and place them in `LiYing/src/model`, or
 
 **Note: For the yolov8n-pose model, you need to export it to an ONNX model. Refer to the [official documentation](https://docs.ultralytics.com/integrations/onnx/) for instructions.**
 
+We also provide pre-converted ONNX models that you can download and use directly:  
+
+| Download Method  | Link  |  
+|-----------------|--------------------------------------------------------------------------------|  
+| Google Drive   | [Download Link](https://drive.google.com/file/d/1F8EQfwkeq4s-P2W4xQjD28c4rxPuX1R3/view) |  
+| Baidu Netdisk  | [Download Link (Extraction Code: ahr9)](https://pan.baidu.com/s/1QhzW53vCbhkIzvrncRqJow?pwd=ahr9) |  
+| GitHub Releases | [Download Link](https://github.com/aoguai/LiYing/releases/latest) |  
+
 #### Running
 
 ```shell
+# View CIL help
 cd LiYing/src
 python main.py --help
 ```
@@ -87,8 +116,15 @@ python main.py --help
 For Windows users, the project provides a batch script for convenience:
 
 ```shell
+# Run BAT script
 cd LiYing
-run_en.bat ./images/test1.jpg
+run.bat ./images/test1.jpg
+```
+
+```shell
+# Run WebUI
+cd LiYing/src/webui
+python app.py
 ```
 
 #### CLI Parameters and Help
@@ -101,55 +137,60 @@ Options:
   -y, --yolov8-model-path PATH    Path to YOLOv8 model
   -u, --yunet-model-path PATH     Path to YuNet model
   -r, --rmbg-model-path PATH      Path to RMBG model
+  -sz, --size-config PATH         Path to size configuration file
+  -cl, --color-config PATH        Path to color configuration file
   -b, --rgb-list RGB_LIST         RGB channel values list (comma-separated)
                                   for image composition
   -s, --save-path PATH            Path to save the output image
-  -p, --photo-type TEXT           Photo types(supporting formats of XXpx x
-                                  XXpx or those specified in the data.ini)
-  --photo-sheet-size TEXT         Size of the photo sheet(supporting formats
-                                  of XXpx x XXpx or those specified in the
-                                  data.ini)
+  -p, --photo-type TEXT           Photo types
+  -ps, --photo-sheet-size TEXT    Size of the photo sheet
   -c, --compress / --no-compress  Whether to compress the image
-  -sc, --save-corrected / --no-save-corrected
+  -sv, --save-corrected / --no-save-corrected
                                   Whether to save the corrected image
   -bg, --change-background / --no-change-background
                                   Whether to change the background
   -sb, --save-background / --no-save-background
                                   Whether to save the image with changed
                                   background
+  -lo, --layout-only              Only layout the photo without changing
+                                  background
   -sr, --sheet-rows INTEGER       Number of rows in the photo sheet
   -sc, --sheet-cols INTEGER       Number of columns in the photo sheet
-  --rotate / --no-rotate          Whether to rotate the photo by 90 degrees
+  -rt, --rotate / --no-rotate     Whether to rotate the photo by 90 degrees
   -rs, --resize / --no-resize     Whether to resize the image
-  -srz, --save-resized / --no-save-resized
+  -sz, --save-resized / --no-save-resized
                                   Whether to save the resized image
+  -al, --add-crop-lines / --no-add-crop-lines
+                                  Add crop lines to the photo sheet
   --help                          Show this message and exit.
 
 ```
 
-### Other Configuration
+#### Configuration Files  
 
-In this version, the standard ID photo settings are configured in `data/data_en.ini`. You can use the `photo-type` and `photo-sheet-size` parameters.
+In this version, the `data` directory contains standard ID photo configuration files (`size_XX.csv`) and commonly used color configurations (`color_XX.csv`). You can modify, add, or remove configurations based on the provided CSV template format.
 
-Additionally, you can modify this configuration file to customize the ID photo types. For the Chinese environment, the format is as follows:
-```text
-[XXX]
-print_size = XXXcm x XXXcm
-electronic_size = XXXpx x XXXpx
-resolution = XXXdpi
-```
-The section name `[XXX]` and the line `electronic_size = XXXpx x XXXpx` are mandatory.
+## Changelog  
 
-The section name represents the values for the `photo-type` and `photo-sheet-size` parameters.
+**Note: This version includes changes to CIL parameters. Please carefully read the latest CIL help documentation to avoid issues.**  
 
-Furthermore, `photo-type` and `photo-sheet-size` also support direct input of strings in the format `XXXpx x XXXpx`, representing width and height.
+- **2025/02/07 Update**  
+  - **Added WebUI**  
+  - Optimized configuration method by replacing INI files with CSV  
+  - Added CI/CD for automated builds and testing  
+  - Added options for layout-only photos and whether to add crop lines on the photo grid  
+  - Improved fallback handling for non-face images  
+  - Fixed known bugs  
+  - Added and refined more photo sizes  
 
-## Changelog
+<details>  
+  <summary>Previous Changelog</summary>  
 
 - **2024/08/06 Update**
   - Added support for entering width and height in pixels directly for `photo-type` and `photo-sheet-size`, and support for configuration via `data.ini`.
   - Fixed issues related to some i18n configurations; now compatible with both English and Chinese settings.
   - Fixed other known bugs.
+</details>
 
 
 ## Acknowledgments
