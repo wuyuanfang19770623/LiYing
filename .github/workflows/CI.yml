@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-windows-portable:
+    runs-on: windows-latest
+    env:
+      PYTHON_VERSION: '3.8.10'
+      EMBEDDABLE_URL: 'https://www.python.org/ftp/python/3.8.10/python-3.8.10-embed-amd64.zip'
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Download embeddable Python
+      run: |
+        Invoke-WebRequest -Uri ${{ env.EMBEDDABLE_URL }} -OutFile python-embed.zip
+        Expand-Archive -Path python-embed.zip -DestinationPath python-embed
+
+    - name: Configure Python
+      run: |
+        $pythonPth = Get-Content 'python-embed\python38._pth' -Raw
+        $pythonPth = $pythonPth -replace '#import site','import site'
+        Set-Content -Path 'python-embed\python38._pth' -Value $pythonPth -NoNewline
+        Invoke-WebRequest -Uri https://bootstrap.pypa.io/get-pip.py -OutFile python-embed\get-pip.py
+        cd python-embed
+        .\python.exe get-pip.py
+        cd ..
+
+    - name: Install dependencies
+      run: |
+        cd python-embed
+        .\python.exe -m pip install "onnxruntime==1.14.0"
+        .\python.exe -m pip install "orjson==3.10.7"
+        .\python.exe -m pip install "gradio==4.41.0"
+        .\python.exe -m pip install -r ..\requirements.txt
+        cd ..
+
+    - name: Prepare application files
+      run: |
+        New-Item -Path 'LiYing' -ItemType Directory
+
+        Copy-Item -Path 'data' -Destination 'LiYing' -Recurse
+        Copy-Item -Path 'src' -Destination 'LiYing' -Recurse
+        Copy-Item -Path 'images' -Destination 'LiYing' -Recurse
+        Copy-Item -Path 'requirements.txt' -Destination 'LiYing'
+        Copy-Item -Path 'run_*.bat' -Destination 'LiYing'
+
+        Copy-Item -Path 'python-embed' -Destination 'LiYing\python-embed' -Recurse
+
+    - name: Create a temporary Python script for zipping
+      run: |
+        echo "import zipfile" > zip_package.py
+        echo "import os" >> zip_package.py
+        echo "zipf = zipfile.ZipFile('LiYing_Portable_Win_x64.zip', 'w', zipfile.ZIP_DEFLATED)" >> zip_package.py
+        echo "for root, dirs, files in os.walk('LiYing'):" >> zip_package.py
+        echo "    for file in files:" >> zip_package.py
+        echo "        zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), os.path.join('LiYing', '..')))" >> zip_package.py
+        echo "zipf.close()" >> zip_package.py
+
+    - name: Zip package using Python
+      run: |
+        python zip_package.py
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./LiYing_Portable_Win_x64.zip
+        asset_name: LiYing_Win_x64_Portable.zip
+        asset_content_type: application/zip
