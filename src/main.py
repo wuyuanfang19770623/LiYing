@@ -90,10 +90,10 @@ def echo_message(key, **kwargs):
               help='RGB channel values list (comma-separated) for image composition' if get_language() == 'en' else 'RGB 通道值列表（英文逗号分隔），用于图像合成')
 @click.option('-s', '--save-path', type=click.Path(), default='output.jpg',
               help='Path to save the output image' if get_language() == 'en' else '保存路径')
-@click.option('-p', '--photo-type', type=str, default='one_inch' if get_language() == 'en' else '一寸',
-              help='Photo types(supporting formats of XXpx x XXpx or those specified in the size config)' if get_language() == 'en' else '照片类型（支持 XXpx x XXpx 格式或尺寸配置中指定的格式）')
-@click.option('-ps', '--photo-sheet-size', type=str, default='five_inch' if get_language() == 'en' else '五寸',
-              help='Size of the photo sheet(supporting formats of XXpx x XXpx or those specified in the size config)' if get_language() == 'en' else '选择照片表格的尺寸（支持 XXpx x XXpx 格式或尺寸配置中指定的格式）')
+@click.option('-p', '--photo-type', type=str, default='One Inch' if get_language() == 'en' else '一寸',
+              help='Photo types' if get_language() == 'en' else '照片类型')
+@click.option('-ps', '--photo-sheet-size', type=str, default='Five Inch' if get_language() == 'en' else '五寸',
+              help='Size of the photo sheet' if get_language() == 'en' else '选择照片表格的尺寸')
 @click.option('-c', '--compress/--no-compress', default=False,
               help='Whether to compress the image' if get_language() == 'en' else '是否压缩图像（使用 AGPicCompress 压缩）')
 @click.option('-sv', '--save-corrected/--no-save-corrected', default=False,
