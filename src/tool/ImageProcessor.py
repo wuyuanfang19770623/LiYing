@@ -1,15 +1,16 @@
 import os
 import warnings
+from io import BytesIO
 
 import cv2 as cv
 import numpy as np
-
+import piexif
 from PIL import Image
-from io import BytesIO
 
 from ImageSegmentation import ImageSegmentation
 from PhotoEntity import PhotoEntity
 from PhotoRequirements import PhotoRequirements
+from agpic import ImageCompressor
 
 
 def get_model_file(filename):
@@ -266,12 +267,32 @@ class ImageProcessor:
         
         return self.photo.image
 
-    def save_photos(self, save_path: str, y_b=False) -> None:
+    def save_photos(self, save_path: str, y_b=False, target_size=None, size_range=None) -> None:
         """
         Save the image to the specified path.
         :param save_path: The path to save the image
         :param y_b: Whether to compress the image
+        :param target_size: Target file size in KB. When specified, ignores quality.
+        :param size_range: A tuple of (min_size, max_size) in KB for the output file.
         """
+        # Parameter validation for target_size and size_range
+        if target_size is not None and size_range is not None:
+            warnings.warn("Both target_size and size_range provided. Using target_size and ignoring size_range.", 
+                           UserWarning)
+            size_range = None
+            
+        if target_size is not None and target_size <= 0:
+            raise ValueError(f"Target size must be greater than 0, got {target_size}")
+            
+        if size_range is not None:
+            if len(size_range) != 2:
+                raise ValueError(f"Size range must be a tuple of (min_size, max_size), got {size_range}")
+            min_size, max_size = size_range
+            if min_size <= 0 or max_size <= 0:
+                raise ValueError(f"Size range values must be greater than 0, got min_size={min_size}, max_size={max_size}")
+            if min_size >= max_size:
+                raise ValueError(f"Minimum size must be less than maximum size, got min_size={min_size}, max_size={max_size}")
+
         # Check the path length
         max_path_length = 200
         if len(save_path) > max_path_length:
@@ -282,9 +303,6 @@ class ImageProcessor:
             base_name = base_name[:200] + ext  # Ensure that filenames do not exceed 200 characters
             save_path = os.path.join(dir_name, base_name)
 
-        # Convert OpenCV image to PIL Image
-        pil_image = Image.fromarray(cv.cvtColor(self.photo.image, cv.COLOR_BGR2RGB))
-
         # Get the DPI from the photo entity
         if isinstance(self.photo.resolution, int):
             dpi = self.photo.resolution
@@ -293,17 +311,103 @@ class ImageProcessor:
         else:
             dpi = 300  # Default DPI if resolution is not set
 
-        # Set the DPI metadata
-        pil_image.info['dpi'] = (dpi, dpi)
-
-        if y_b:
-            # Compress the image
+        # Check if we need to compress (either y_b flag is True or size parameters are provided)
+        need_compression = y_b or target_size is not None or size_range is not None
+        
+        if need_compression:
             buffer = BytesIO()
-            pil_image.save(buffer, format="JPEG", quality=85, dpi=(dpi, dpi))
-            compressed_bytes = buffer.getvalue()
-            compressed_image = Image.open(BytesIO(compressed_bytes))
-            compressed_image.save(save_path, dpi=(dpi, dpi))
+            pil_image = Image.fromarray(cv.cvtColor(self.photo.image, cv.COLOR_BGR2RGB))
+            pil_image.save(buffer, format="JPEG")
+            image_bytes = buffer.getvalue()
+            
+            try:
+                if target_size is not None:
+                    compressed_bytes = ImageCompressor.compress_image_from_bytes(
+                        image_bytes, quality=85, target_size=target_size
+                    )
+                elif size_range is not None:
+                    compressed_bytes = ImageCompressor.compress_image_from_bytes(
+                        image_bytes, quality=85, size_range=size_range
+                    )
+                else:
+                    compressed_bytes = ImageCompressor.compress_image_from_bytes(
+                        image_bytes, quality=85
+                    )
+
+                # Write compressed bytes directly to the file
+                with open(save_path, 'wb') as f:
+                    f.write(compressed_bytes)
+                
+                # Setting up DPI using piexif
+                try:
+                    # Converting DPI to EXIF resolution format
+                    x_resolution = (dpi, 1)  # DPI value and unit
+                    y_resolution = (dpi, 1)
+                    resolution_unit = 2  # inches
+                    
+                    # Read existing EXIF data (if present)
+                    exif_dict = piexif.load(save_path)
+                    
+                    # If '0th' does not exist, create it
+                    if '0th' not in exif_dict:
+                        exif_dict['0th'] = {}
+                    
+                    # Set resolution information
+                    exif_dict['0th'][piexif.ImageIFD.XResolution] = x_resolution
+                    exif_dict['0th'][piexif.ImageIFD.YResolution] = y_resolution
+                    exif_dict['0th'][piexif.ImageIFD.ResolutionUnit] = resolution_unit
+                    
+                    # Write EXIF data back to file
+                    exif_bytes = piexif.dump(exif_dict)
+                    piexif.insert(exif_bytes, save_path)
+                except Exception as e:
+                    warnings.warn(f"Failed to set DPI with piexif: {str(e)}. Image saved without DPI metadata.", UserWarning)
+                
+            except Exception as e:
+                warnings.warn(f"Image compression failed: {str(e)}. Saving uncompressed image.", UserWarning)
+                _, img_bytes = cv.imencode('.jpg', self.photo.image, [cv.IMWRITE_JPEG_QUALITY, 95])
+                with open(save_path, 'wb') as f:
+                    f.write(img_bytes)
+
+                try:
+                    x_resolution = (dpi, 1)
+                    y_resolution = (dpi, 1)
+                    resolution_unit = 2
+
+                    exif_dict = piexif.load(save_path)
+
+                    if '0th' not in exif_dict:
+                        exif_dict['0th'] = {}
+
+                    exif_dict['0th'][piexif.ImageIFD.XResolution] = x_resolution
+                    exif_dict['0th'][piexif.ImageIFD.YResolution] = y_resolution
+                    exif_dict['0th'][piexif.ImageIFD.ResolutionUnit] = resolution_unit
+
+                    exif_bytes = piexif.dump(exif_dict)
+                    piexif.insert(exif_bytes, save_path)
+                except Exception as ex:
+                    warnings.warn(f"Failed to set DPI with piexif: {str(ex)}. Image saved without DPI metadata.", UserWarning)
         else:
-            # Save the image without compression
-            pil_image.save(save_path, dpi=(dpi, dpi))
+            _, img_bytes = cv.imencode('.jpg', self.photo.image, [cv.IMWRITE_JPEG_QUALITY, 95])
+            with open(save_path, 'wb') as f:
+                f.write(img_bytes)
+
+            try:
+                x_resolution = (dpi, 1)
+                y_resolution = (dpi, 1)
+                resolution_unit = 2
+
+                exif_dict = piexif.load(save_path)
+
+                if '0th' not in exif_dict:
+                    exif_dict['0th'] = {}
+
+                exif_dict['0th'][piexif.ImageIFD.XResolution] = x_resolution
+                exif_dict['0th'][piexif.ImageIFD.YResolution] = y_resolution
+                exif_dict['0th'][piexif.ImageIFD.ResolutionUnit] = resolution_unit
+
+                exif_bytes = piexif.dump(exif_dict)
+                piexif.insert(exif_bytes, save_path)
+            except Exception as ex:
+                warnings.warn(f"Failed to set DPI with piexif: {str(ex)}. Image saved without DPI metadata.", UserWarning)
 
