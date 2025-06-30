@@ -122,7 +122,7 @@ class ImageProcessor:
             # Get bounding box coordinates and keypoints
             bbox_xyxy = self.photo.person_bbox
             x1, y1, x2, y2 = bbox_xyxy
-            print(x1, y1, x2, y2)
+            # print(x1, y1, x2, y2)
             bbox_keypoints = self.photo.person_keypoints
             bbox_height = y2 - y1
 
