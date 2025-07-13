@@ -19,7 +19,7 @@ class PhotoSheetGenerator:
         cv2_image_rgb = cv2.cvtColor(np.array(pillow_image), cv2.COLOR_RGB2BGR)
         return cv2_image_rgb
 
-    def generate_photo_sheet(self, one_inch_photo_cv2, rows=3, cols=3, rotate=False, add_crop_lines=True):
+    def generate_photo_sheet(self, one_inch_photo_cv2, rows=3, cols=3, rotate=False, add_crop_lines=True, auto_adjust=True):
         one_inch_height, one_inch_width = one_inch_photo_cv2.shape[:2]
 
         # Convert OpenCV image data to Pillow image
@@ -38,7 +38,27 @@ class PhotoSheetGenerator:
         total_height = rows * one_inch_height
 
         if total_width > self.five_inch_size[0] or total_height > self.five_inch_size[1]:
-            raise ValueError("The specified layout exceeds the size of the photo sheet")
+            # Calculate maximum possible layout
+            max_cols = self.five_inch_size[0] // one_inch_width
+            max_rows = self.five_inch_size[1] // one_inch_height
+            max_photos = max_cols * max_rows
+            requested_photos = rows * cols
+            
+            if auto_adjust and max_photos > 0:
+                # Auto-adjust to maximum possible layout
+                print(f"Warning: Requested layout ({rows}x{cols} = {requested_photos} photos) exceeds sheet capacity. "
+                      f"Auto-adjusting to maximum possible layout: {max_rows}x{max_cols} = {max_photos} photos.")
+                rows = max_rows
+                cols = max_cols
+                # Recalculate with adjusted layout
+                total_width = cols * one_inch_width
+                total_height = rows * one_inch_height
+            else:
+                error_msg = (f"The specified layout ({rows}x{cols} = {requested_photos} photos) exceeds the size of the photo sheet. "
+                            f"Photo size: {one_inch_width}x{one_inch_height}px, Sheet size: {self.five_inch_size[0]}x{self.five_inch_size[1]}px. "
+                            f"Maximum possible layout: {max_rows}x{max_cols} = {max_photos} photos. "
+                            f"Please reduce the number of rows/columns or use a larger sheet size.")
+                raise ValueError(error_msg)
 
         start_x = (self.five_inch_size[0] - total_width) // 2
         start_y = (self.five_inch_size[1] - total_height) // 2

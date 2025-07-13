@@ -28,7 +28,7 @@ SAVE_IMG_DIR = os.path.join(PROJECT_ROOT, 'output')
 
 DEFAULT_YOLOV8_PATH = os.path.join(MODEL_DIR, 'yolov8n-pose.onnx')
 DEFAULT_YUNET_PATH = os.path.join(MODEL_DIR, 'face_detection_yunet_2023mar.onnx')
-DEFAULT_RMBG_PATH = os.path.join(MODEL_DIR, 'RMBG-1.4-model.onnx')
+DEFAULT_RMBG_PATH = os.path.join(MODEL_DIR, 'rmbg-1.4.onnx')
 DEFAULT_SIZE_CONFIG = os.path.join(DATA_DIR, 'size_{}.csv')
 DEFAULT_COLOR_CONFIG = os.path.join(DATA_DIR, 'color_{}.csv')
 
@@ -83,14 +83,15 @@ def parse_color(color_string):
         return [min(255, max(0, int(float(x)))) for x in rgb_match.groups()]
     return [255, 255, 255]
 
-def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True):
+def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True, language='en'):
     """Process the image with specified parameters."""
     processor = ImageProcessor(img_path, 
                             yolov8_model_path=yolov8_path,
                             yunet_model_path=yunet_path,
                             RMBG_model_path=rmbg_path,
                             rgb_list=rgb_list, 
-                            y_b=compress)
+                            y_b=compress,
+                            language=language)
 
     processor.crop_and_correct_image()
     
@@ -159,7 +160,7 @@ def create_demo(initial_language):
     sheet_size_choices = list(sheet_size_configs.keys())
     color_choices = [t('custom_color', initial_language)] + list(color_configs.keys())
 
-    with gr.Blocks(theme=gr.themes.Soft()) as demo:
+    with gr.Blocks(theme=gr.themes.Soft(), title=t('title', initial_language)) as demo:
         language = gr.State(initial_language)
 
         title = gr.Markdown(f"# {t('title', initial_language)}")
@@ -295,7 +296,7 @@ def create_demo(initial_language):
             result = process_and_display(
                 input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
                 photo_type, photo_sheet_size, background_color, compress, change_background, 
-                rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines
+                rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines, language.value
             )
             
             if result:
@@ -513,7 +514,7 @@ def create_demo(initial_language):
 
         def process_and_display(image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type, 
                                 photo_sheet_size, background_color, compress, change_background, rotate, resize, 
-                                sheet_rows, sheet_cols, layout_only, add_crop_lines):
+                                sheet_rows, sheet_cols, layout_only, add_crop_lines, lang):
             """Process and display the image with given parameters."""
             rgb_list = parse_color(background_color)
             image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
@@ -536,6 +537,7 @@ def create_demo(initial_language):
                 sheet_rows=sheet_rows,
                 sheet_cols=sheet_cols,
                 add_crop_lines=add_crop_lines,
+                language=lang,
             )
 
             os.remove(temp_image_path)
@@ -732,4 +734,4 @@ if __name__ == "__main__":
 
     initial_language = args.lang
     demo = create_demo(initial_language)
-    demo.launch(share=False, server_name="127.0.0.1", server_port=7860)
+    demo.launch(share=False, server_name="0.0.0.0", server_port=7862, inbrowser=False, quiet=True)

@@ -109,5 +109,9 @@ class PhotoRequirements:
             # If neither is defined, return empty dict
             return {}
 
+    def get_sheet_size_configs(self):
+        """Get all sheet size configurations."""
+        return self.config_manager.get_sheet_size_configs()
+
     def switch_language(self, new_language):
         self.config_manager.switch_language(new_language)

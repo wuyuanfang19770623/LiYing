@@ -24,7 +24,8 @@ class ImageProcessor:
                  yunet_model_path=None,
                  RMBG_model_path=None,
                  rgb_list=None,
-                 y_b=False):
+                 y_b=False,
+                 language='en'):
         """
         Initialize ImageProcessor instance
 
@@ -38,12 +39,17 @@ class ImageProcessor:
             raise FileNotFoundError(f"Image path does not exist: {img_path}")
 
         # Set default model paths if not provided
+        # Get the project root directory (assuming this file is in src/tool/)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(os.path.dirname(current_dir))
+        model_dir = os.path.join(project_root, 'src', 'model')
+        
         if yolov8_model_path is None:
-            yolov8_model_path = os.path.join(os.path.dirname(sys.executable), 'model', 'yolov8n-pose.onnx')
+            yolov8_model_path = os.path.join(model_dir, 'yolov8n-pose.onnx')
         if yunet_model_path is None:
-            yunet_model_path = os.path.join(os.path.dirname(sys.executable), 'model', 'face_detection_yunet_2023mar.onnx')
+            yunet_model_path = os.path.join(model_dir, 'face_detection_yunet_2023mar.onnx')
         if RMBG_model_path is None:
-            RMBG_model_path = os.path.join(os.path.dirname(sys.executable), 'model', 'RMBG-1.4-model.onnx')
+            RMBG_model_path = os.path.join(model_dir, 'rmbg-1.4.onnx')
 
         # Check if model files exist
         if not os.path.exists(yolov8_model_path):
@@ -56,7 +62,7 @@ class ImageProcessor:
         self.photo = PhotoEntity(img_path, yolov8_model_path, yunet_model_path, y_b)
         self.segmentation = ImageSegmentation(model_path=RMBG_model_path, model_input_size=[1024, 1024],
                                            rgb_list=rgb_list if rgb_list is not None else [255, 255, 255])
-        self.photo_requirements_detector = PhotoRequirements()
+        self.photo_requirements_detector = PhotoRequirements(language=language)
 
     @staticmethod
     def rotate_image(image: np.ndarray, angle: float) -> np.ndarray:

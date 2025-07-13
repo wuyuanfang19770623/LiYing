@@ -29,7 +29,7 @@ class TestLiYing(unittest.TestCase):
         # Set model paths
         cls.yolov8_model_path = os.path.join(project_root, 'src', 'model', 'yolov8n-pose.onnx')
         cls.yunet_model_path = os.path.join(project_root, 'src', 'model', 'face_detection_yunet_2023mar.onnx')
-        cls.rmbg_model_path = os.path.join(project_root, 'src', 'model', 'RMBG-1.4-model.onnx')
+        cls.rmbg_model_path = os.path.join(project_root, 'src', 'model', 'rmbg-1.4.onnx')
 
     def get_first_valid_photo_size(self, photo_requirements):
         photo_types = photo_requirements.list_photo_types()

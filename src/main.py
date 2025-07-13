@@ -125,7 +125,7 @@ def echo_message(key, **kwargs):
               default=os.path.join(MODEL_DIR, 'face_detection_yunet_2023mar.onnx'),
               help='Path to YuNet model' if get_language() == 'en' else 'YuNet 模型路径')
 @click.option('-r', '--rmbg-model-path', type=click.Path(),
-              default=os.path.join(MODEL_DIR, 'RMBG-1.4-model.onnx'),
+              default=os.path.join(MODEL_DIR, 'rmbg-1.4.onnx'),
               help='Path to RMBG model' if get_language() == 'en' else 'RMBG 模型路径')
 @click.option('-sz', '--size-config', type=click.Path(exists=True),
               default=os.path.join(DATA_DIR, f'size_{get_language()}.csv'),
